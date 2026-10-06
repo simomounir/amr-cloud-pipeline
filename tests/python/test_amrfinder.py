@@ -47,3 +47,11 @@ def test_zero_byte_file_is_rejected(tmp_path):
     path.write_text("")
     with pytest.raises(InputFormatError, match="empty AMRFinderPlus report"):
         read_amrfinder(path)
+
+
+def test_non_numeric_identity_names_file_and_column(tmp_path):
+    row = amrfinder_row("blaKPC-2")
+    row["% Identity to reference"] = "high"
+    path = write_amrfinder(tmp_path / "s.tsv", [row])
+    with pytest.raises(InputFormatError, match=r"s\.tsv: non-numeric values in 'pct_identity'"):
+        read_amrfinder(path)

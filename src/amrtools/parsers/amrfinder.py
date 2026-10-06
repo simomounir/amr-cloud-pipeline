@@ -37,6 +37,9 @@ def read_amrfinder(path: Path) -> pd.DataFrame:
         columns[ours] = report[source]
 
     genes = pd.DataFrame(columns, columns=AMRFINDER_FIELDS)
-    genes["pct_identity"] = genes["pct_identity"].astype(float)
-    genes["pct_coverage"] = genes["pct_coverage"].astype(float)
+    for name in ("pct_identity", "pct_coverage"):
+        try:
+            genes[name] = genes[name].astype(float)
+        except ValueError as exc:
+            raise InputFormatError(f"{path}: non-numeric values in '{name}'") from exc
     return genes

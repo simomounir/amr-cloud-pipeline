@@ -20,8 +20,12 @@ process KLEBORATE {
 
     # Kleborate writes one main file per detected species complex (plus an
     # hAMRonization file), or none when the assembly is outside the preset.
+    # Prefer the K. pneumoniae complex file; otherwise take the first in sorted order.
     # An empty file tells amrtools "no result".
-    result=\$(find kleborate_out -name '*_output.txt' ! -name '*hAMRonization*' | head -n 1)
+    result=kleborate_out/klebsiella_pneumo_complex_output.txt
+    if [ ! -f "\$result" ]; then
+        result=\$(find kleborate_out -name '*_output.txt' ! -name '*hAMRonization*' | sort | head -n 1)
+    fi
     if [ -n "\$result" ]; then
         cp "\$result" ${meta.id}.kleborate.tsv
     else
