@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Status: Draft for review
-Source brief: `amr-cloud-pipeline-project.md` (sections 5, 6, 7, 9)
+Source brief: `docs/amr-cloud-pipeline-project.md` (sections 5, 6, 7, 9)
 
 ## 1. Scope
 
