@@ -1,0 +1,45 @@
+nextflow_pipeline {
+
+    name "Isolate pipeline"
+    script "../../main.nf"
+
+    test("stub run gives one summary row per sample, sorted") {
+        tag "stub"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def summary = path("$outputDir/summary/run_summary.tsv").readLines()
+            assert summary.size() == 4
+            assert summary.drop(1).collect { it.split('\t')[0] } == ['stub_a', 'stub_b', 'stub_c']
+            assert path("$outputDir/summary/amr_genes.tsv").exists()
+        }
+    }
+
+    test("samplesheet with unsafe or duplicate sample names is rejected") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_bad.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            def errors = workflow.stderr.join('\n')
+            assert errors.contains('sample may only contain')
+            assert errors.contains('Detected duplicate entries')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+}

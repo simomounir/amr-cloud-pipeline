@@ -30,3 +30,6 @@ credentials
 
 # Plan-execution scratch
 .superpowers/
+
+# Per-platform container configs that nf-core tools writes on module install; unused here
+conf/containers_*.config
