@@ -102,24 +102,38 @@ jobs:
 
   publish-image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [unit, stub]
+    needs: [unit, stub, full]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v7
+      - name: Read amrtools version
+        id: version
+        run: echo "version=$(python3 -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Released tags are immutable: bump the version in pyproject.toml to publish a new image.
+      - name: Check whether this version is already published
+        id: exists
+        run: |
+          if docker manifest inspect "ghcr.io/simomounir/amrtools:${{ steps.version.outputs.version }}" > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::amrtools:${{ steps.version.outputs.version }} already exists; not overwriting. Bump the version to publish."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/build-push-action@v7
+        if: steps.exists.outputs.published == 'false'
         with:
           context: .
           file: containers/amrtools/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/simomounir/amrtools:0.1.0
+            ghcr.io/simomounir/amrtools:${{ steps.version.outputs.version }}
             ghcr.io/simomounir/amrtools:latest

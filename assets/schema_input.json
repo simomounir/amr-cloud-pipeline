@@ -8,8 +8,8 @@
         "properties": {
             "sample": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9_.-]+$",
-                "errorMessage": "sample may only contain letters, digits, '_', '.' and '-'",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "errorMessage": "sample may only contain letters, digits, '_', '.' and '-', and must start with a letter or digit",
                 "meta": ["id"]
             },
             "fastq_1": {

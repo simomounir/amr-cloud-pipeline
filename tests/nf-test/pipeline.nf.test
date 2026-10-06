@@ -39,9 +39,29 @@ nextflow_pipeline {
             def errors = workflow.stderr.join('\n')
             assert errors.contains('sample may only contain')
             assert errors.contains('Detected duplicate entries')
+            assert errors.contains("Error for field 'sample' (-x)")
             assert workflow.trace.tasks().size() == 0
         }
     }
+    test("AMRFinderPlus database must be a .tar.gz archive") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input        = "${baseDir}/tests/data/samplesheet_stub.csv"
+                outdir       = "$outputDir"
+                amrfinder_db = "${baseDir}/tests/data/amrfinderdb"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains('--amrfinder_db')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
     test("tiny dataset gives expected species, ST and carbapenemases") {
         tag "full"
 

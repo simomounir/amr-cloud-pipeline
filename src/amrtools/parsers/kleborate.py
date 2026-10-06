@@ -18,9 +18,22 @@ class KleborateResult:
 
 NO_RESULT = KleborateResult(species="NA", st="NA", resistance_score="NA", virulence_score="NA")
 
+# Species of the K. pneumoniae species complex; for these the kpsc preset must report typing.
+_KPSC_SPECIES = (
+    "Klebsiella pneumoniae",
+    "Klebsiella quasipneumoniae",
+    "Klebsiella variicola",
+    "Klebsiella quasivariicola",
+    "Klebsiella africana",
+)
+_KPSC_REQUIRED = ("ST", "resistance_score", "virulence_score")
+
 
 def read_kleborate(path: Path) -> KleborateResult:
-    """An empty file means Kleborate wrote no result for this assembly (outside the preset)."""
+    """An empty file means Kleborate wrote no result for this assembly (outside the preset).
+
+    Typing columns may be absent only for species outside the K. pneumoniae complex.
+    """
     path = Path(path)
     if path.stat().st_size == 0:
         return NO_RESULT
@@ -30,6 +43,10 @@ def read_kleborate(path: Path) -> KleborateResult:
     if len(table) != 1:
         raise InputFormatError(f"{path}: expected 1 Kleborate row, found {len(table)}")
     row = table.iloc[0]
+    if row["species"].startswith(_KPSC_SPECIES):
+        for column in _KPSC_REQUIRED:
+            if column not in table.columns:
+                raise InputFormatError(f"{path}: missing Kleborate column '{column}'")
 
     def field(name: str) -> str:
         return row.get(name, "") or "NA"

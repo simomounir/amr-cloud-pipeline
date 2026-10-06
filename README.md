@@ -39,8 +39,13 @@ S1,reads/S1_R1.fastq.gz,reads/S1_R2.fastq.gz,isolate,Klebsiella_pneumoniae
 ```
 
 Relative paths resolve against the samplesheet's folder. Pass
-`--amrfinder_db <dir or .tar.gz>` to pin an AMRFinderPlus database; otherwise the
-latest is downloaded.
+`--amrfinder_db <file.tar.gz>` to pin an AMRFinderPlus database; otherwise the
+latest is downloaded. Build the archive from one database version:
+
+```bash
+amrfinder_update -d amrfinderdb
+tar czf amrfinderdb.tar.gz -C "amrfinderdb/$(readlink amrfinderdb/latest)" .
+```
 
 On Apple Silicon, containers run as `linux/amd64` under emulation: give Docker
 Desktop at least 8 GB of memory and expect slow assemblies.

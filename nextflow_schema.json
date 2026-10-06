@@ -19,7 +19,9 @@
         },
         "amrfinder_db": {
             "type": "string",
-            "description": "AMRFinderPlus database directory or .tar.gz; downloaded when not set"
+            "pattern": "^\\S+\\.tar\\.gz$",
+            "errorMessage": "--amrfinder_db must be a .tar.gz archive of one AMRFinderPlus database version",
+            "description": "AMRFinderPlus database as a .tar.gz of one database version; downloaded when not set"
         },
         "amrtools_container": {
             "type": "string",
