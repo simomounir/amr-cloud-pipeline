@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,sample_type,organism
+stub_a,stub/missing_R1.fastq.gz,stub/stub_a_R2.fastq.gz,isolate,Klebsiella_pneumoniae

@@ -1,0 +1,141 @@
+name: CI
+
+# Branch work is checked through its pull request; main is checked again after merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NXF_VER: "26.04.6"
+  NFT_VER: "0.9.5"
+  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.1.0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit && pre-commit run --all-files --show-diff-on-failure
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: nf-core/setup-nextflow@893c28b667aedeba26e37f296d260ccc5bc4d914 # v3.0.1
+        with:
+          version: ${{ env.NXF_VER }}
+      - name: Install nf-test
+        run: |
+          curl -fsSL https://get.nf-test.com | bash -s "$NFT_VER"
+          sudo mv nf-test /usr/local/bin/
+      - name: Build amrtools image
+        run: docker build -f containers/amrtools/Dockerfile -t "$AMRTOOLS_IMAGE" .
+      - run: nf-test test tests/ --tag stub,validation --profile test,docker
+
+  full:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [unit, stub]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: nf-core/setup-nextflow@893c28b667aedeba26e37f296d260ccc5bc4d914 # v3.0.1
+        with:
+          version: ${{ env.NXF_VER }}
+      - name: Install nf-test
+        run: |
+          curl -fsSL https://get.nf-test.com | bash -s "$NFT_VER"
+          sudo mv nf-test /usr/local/bin/
+      - name: Build amrtools image
+        run: docker build -f containers/amrtools/Dockerfile -t "$AMRTOOLS_IMAGE" .
+      - name: Weekly AMRFinderPlus database cache key
+        id: dbkey
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: dbcache
+        with:
+          path: amrfinderdb.tar.gz
+          key: amrfinderdb-4.2.7-${{ steps.dbkey.outputs.week }}
+      - name: Download AMRFinderPlus database
+        if: steps.dbcache.outputs.cache-hit != 'true'
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work quay.io/biocontainers/ncbi-amrfinderplus:4.2.7--hf69ffd2_0 \
+            sh -c 'amrfinder_update -d amrfinderdb && tar czf amrfinderdb.tar.gz -C "amrfinderdb/$(readlink amrfinderdb/latest)" . && rm -rf amrfinderdb'
+      - name: Full test on tiny dataset
+        env:
+          AMRFINDER_DB: ${{ github.workspace }}/amrfinderdb.tar.gz
+        run: nf-test test tests/ --tag full --profile test,docker
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: tiny-dataset-results
+          path: .nf-test/tests/*/output/summary/
+          if-no-files-found: warn
+
+  publish-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [unit, stub, full]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read amrtools version
+        id: version
+        run: echo "version=$(python3 -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Released tags are immutable: bump the version in pyproject.toml to publish a new image.
+      - name: Check whether this version is already published
+        id: exists
+        run: |
+          if docker manifest inspect "ghcr.io/simomounir/amrtools:${{ steps.version.outputs.version }}" > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::amrtools:${{ steps.version.outputs.version }} already exists; not overwriting. Bump the version to publish."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        if: steps.exists.outputs.published == 'false'
+        with:
+          context: .
+          file: containers/amrtools/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/simomounir/amrtools:${{ steps.version.outputs.version }}
+            ghcr.io/simomounir/amrtools:latest

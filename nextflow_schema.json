@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/simomounir/amr-cloud-pipeline/main/nextflow_schema.json",
+    "title": "amr-cloud-pipeline parameters",
+    "type": "object",
+    "properties": {
+        "input": {
+            "type": "string",
+            "format": "file-path",
+            "exists": true,
+            "schema": "assets/schema_input.json",
+            "pattern": "^\\S+\\.csv$",
+            "description": "Samplesheet CSV (sample,fastq_1,fastq_2,sample_type,organism)"
+        },
+        "outdir": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "Output directory"
+        },
+        "amrfinder_db": {
+            "type": "string",
+            "pattern": "^\\S+\\.tar\\.gz$",
+            "errorMessage": "--amrfinder_db must be a .tar.gz archive of one AMRFinderPlus database version",
+            "description": "AMRFinderPlus database as a .tar.gz of one database version; downloaded when not set"
+        },
+        "amrtools_container": {
+            "type": "string",
+            "description": "Container image for amrtools"
+        },
+        "qc_min_assembly_length": {"type": "integer", "minimum": 0},
+        "qc_max_assembly_length": {"type": "integer", "minimum": 0},
+        "qc_max_contigs": {"type": "integer", "minimum": 1},
+        "qc_min_q30": {"type": "number", "minimum": 0, "maximum": 1}
+    },
+    "required": ["input", "outdir"]
+}

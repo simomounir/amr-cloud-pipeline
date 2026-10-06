@@ -1,0 +1,135 @@
+nextflow_pipeline {
+
+    name "Isolate pipeline"
+    script "../../main.nf"
+
+    test("stub run gives one summary row per sample, sorted") {
+        tag "stub"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def summary = path("$outputDir/summary/run_summary.tsv").readLines()
+            assert summary.size() == 4
+            assert summary.drop(1).collect { it.split('\t')[0] } == ['stub_a', 'stub_b', 'stub_c']
+            assert path("$outputDir/summary/amr_genes.tsv").exists()
+        }
+    }
+
+    test("samplesheet with unsafe or duplicate sample names is rejected") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_bad.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            def errors = workflow.stderr.join('\n')
+            assert errors.contains('sample may only contain')
+            assert errors.contains('Detected duplicate entries')
+            assert errors.contains("Error for field 'sample' (-x)")
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+    test("missing FASTQ file is reported before any process runs") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_missing.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join('\n').contains('missing_R1.fastq.gz')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
+    test("sample names differing only in case are rejected") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_case.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join('\n').contains('differ only in case')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
+    test("AMRFinderPlus database must be a .tar.gz archive") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input        = "${baseDir}/tests/data/samplesheet_stub.csv"
+                outdir       = "$outputDir"
+                amrfinder_db = "${baseDir}/tests/data/amrfinderdb"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains('--amrfinder_db')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
+    test("tiny dataset gives expected species, ST and carbapenemases") {
+        tag "full"
+
+        when {
+            params {
+                outdir = "$outputDir"
+                if (System.getenv("AMRFINDER_DB")) {
+                    amrfinder_db = System.getenv("AMRFINDER_DB")
+                }
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def readTsv = { file ->
+                def lines = file.readLines()
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries() }
+            }
+            def summary = readTsv(path("$outputDir/summary/run_summary.tsv")).collectEntries { [it.sample, it] }
+            def genes = readTsv(path("$outputDir/summary/amr_genes.tsv"))
+            def symbols = { sample -> genes.findAll { it.sample == sample }*.gene_symbol }
+
+            assert summary.keySet() == ['ERR14097885', 'SRR33580217', 'SRR5386028'] as Set
+            assert summary.values().every { it.kleborate_species == 'Klebsiella pneumoniae' }
+            assert summary.SRR5386028.st == 'ST13'
+            assert summary.ERR14097885.st == 'ST147'
+            assert summary.SRR33580217.st == 'ST23'
+            assert symbols('SRR5386028').any { it.startsWith('blaKPC') }
+            assert symbols('ERR14097885').any { it.startsWith('blaNDM') }
+            assert !symbols('SRR33580217').any { it ==~ /blaKPC.*|blaNDM.*|blaOXA-48.*/ }
+        }
+    }
+}

@@ -544,7 +544,9 @@ def read_fastp(path: Path) -> FastpStats:
         raise InputFormatError(f"{path}: not valid fastp JSON ({exc.msg})") from exc
     try:
         after = report["summary"]["after_filtering"]
-        return FastpStats(reads_after_qc=int(after["total_reads"]), q30_rate=float(after["q30_rate"]))
+        return FastpStats(
+            reads_after_qc=int(after["total_reads"]), q30_rate=float(after["q30_rate"])
+        )
     except KeyError as exc:
         raise InputFormatError(f"{path}: missing fastp field '{exc.args[0]}'") from exc
 ```
@@ -811,7 +813,9 @@ def test_missing_column_names_file_and_column(tmp_path):
     path = write_amrfinder(tmp_path / "s.tsv", ROWS)
     text = path.read_text().replace("Element symbol", "Something else")
     path.write_text(text)
-    with pytest.raises(InputFormatError, match=r"s\.tsv: missing AMRFinderPlus column 'Element symbol'"):
+    with pytest.raises(
+        InputFormatError, match=r"s\.tsv: missing AMRFinderPlus column 'Element symbol'"
+    ):
         read_amrfinder(path)
 
 
@@ -995,7 +999,11 @@ def qc_reasons(
     thresholds: QcThresholds,
 ) -> list[str]:
     reasons = []
-    if not thresholds.min_assembly_length <= assembly.total_length <= thresholds.max_assembly_length:
+    if (
+        not thresholds.min_assembly_length
+        <= assembly.total_length
+        <= thresholds.max_assembly_length
+    ):
         reasons.append("assembly_length")
     if assembly.n_contigs >= thresholds.max_contigs:
         reasons.append("n_contigs")
@@ -1468,7 +1476,9 @@ def _run_stub(args: argparse.Namespace) -> None:
         "organism": args.organism,
     }
     write_tsv(pd.DataFrame(columns=GENE_COLUMNS), args.outdir / f"{args.sample}.amr_genes.tsv")
-    write_tsv(pd.DataFrame([row], columns=SUMMARY_COLUMNS), args.outdir / f"{args.sample}.run_summary.tsv")
+    write_tsv(
+        pd.DataFrame([row], columns=SUMMARY_COLUMNS), args.outdir / f"{args.sample}.run_summary.tsv"
+    )
 
 
 def _run_merge(args: argparse.Namespace) -> None:

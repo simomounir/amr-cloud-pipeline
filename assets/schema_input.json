@@ -1,0 +1,40 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/simomounir/amr-cloud-pipeline/main/assets/schema_input.json",
+    "title": "Samplesheet",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "errorMessage": "sample may only contain letters, digits, '_', '.' and '-', and must start with a letter or digit",
+                "meta": ["id"]
+            },
+            "fastq_1": {
+                "type": "string",
+                "pattern": "^\\S+\\.f(ast)?q\\.gz$",
+                "errorMessage": "fastq_1 must be a .fastq.gz or .fq.gz path or URL"
+            },
+            "fastq_2": {
+                "type": "string",
+                "pattern": "^\\S+\\.f(ast)?q\\.gz$",
+                "errorMessage": "fastq_2 must be a .fastq.gz or .fq.gz path or URL"
+            },
+            "sample_type": {
+                "type": "string",
+                "enum": ["isolate"],
+                "meta": ["sample_type"]
+            },
+            "organism": {
+                "type": "string",
+                "pattern": "^[A-Z][a-z]+_[a-z]+$",
+                "errorMessage": "organism must use AMRFinderPlus naming, e.g. Klebsiella_pneumoniae",
+                "meta": ["organism"]
+            }
+        },
+        "required": ["sample", "fastq_1", "fastq_2", "sample_type", "organism"]
+    },
+    "uniqueEntries": ["sample"]
+}
