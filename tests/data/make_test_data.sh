@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Rebuilds the subsampled reads published as GitHub Release "test-data-v1".
+# Rebuilds the subsampled reads published as GitHub Release "test-data-v2".
 # Usage: tests/data/make_test_data.sh [output_dir]
 set -euo pipefail
 
 OUT=${1:-test-data}
-TARGET_BASES=110000000 # ~20x of a 5.5 Mb K. pneumoniae genome
+TARGET_BASES=220000000 # ~40x of a 5.5 Mb K. pneumoniae genome; 20x left SRR5386028 (~94 bp reads) too fragmented for MLST
 SEED=42
 SEQTK_IMAGE=quay.io/biocontainers/seqtk:1.5--h577a1d6_1
 RUNS=(SRR5386028 ERR14097885 SRR33580217)
