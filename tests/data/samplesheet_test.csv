@@ -1,0 +1,4 @@
+sample,fastq_1,fastq_2,sample_type,organism
+SRR5386028,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/SRR5386028_R1.fastq.gz,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/SRR5386028_R2.fastq.gz,isolate,Klebsiella_pneumoniae
+ERR14097885,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/ERR14097885_R1.fastq.gz,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/ERR14097885_R2.fastq.gz,isolate,Klebsiella_pneumoniae
+SRR33580217,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/SRR33580217_R1.fastq.gz,https://github.com/simomounir/amr-cloud-pipeline/releases/download/test-data-v1/SRR33580217_R2.fastq.gz,isolate,Klebsiella_pneumoniae

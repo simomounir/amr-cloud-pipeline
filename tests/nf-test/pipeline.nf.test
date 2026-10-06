@@ -42,4 +42,38 @@ nextflow_pipeline {
             assert workflow.trace.tasks().size() == 0
         }
     }
+    test("tiny dataset gives expected species, ST and carbapenemases") {
+        tag "full"
+
+        when {
+            params {
+                outdir = "$outputDir"
+                if (System.getenv("AMRFINDER_DB")) {
+                    amrfinder_db = System.getenv("AMRFINDER_DB")
+                }
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def readTsv = { file ->
+                def lines = file.readLines()
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries() }
+            }
+            def summary = readTsv(path("$outputDir/summary/run_summary.tsv")).collectEntries { [it.sample, it] }
+            def genes = readTsv(path("$outputDir/summary/amr_genes.tsv"))
+            def symbols = { sample -> genes.findAll { it.sample == sample }*.gene_symbol }
+
+            assert summary.keySet() == ['ERR14097885', 'SRR33580217', 'SRR5386028'] as Set
+            assert summary.values().every { it.kleborate_species == 'Klebsiella pneumoniae' }
+            assert summary.SRR5386028.st == 'ST13'
+            assert summary.ERR14097885.st == 'ST147'
+            assert summary.SRR33580217.st == 'ST23'
+            assert symbols('SRR5386028').any { it.startsWith('blaKPC') }
+            assert symbols('ERR14097885').any { it.startsWith('blaNDM') }
+            assert !symbols('SRR33580217').any { it ==~ /blaKPC.*|blaNDM.*|blaOXA-48.*/ }
+        }
+    }
 }
