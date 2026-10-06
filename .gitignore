@@ -1,0 +1,32 @@
+# Nextflow
+work/
+results/
+.nextflow/
+.nextflow.log*
+.nf-test/
+.nf-test.log
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Data (test reads live in the GitHub Release, not in git)
+*.fastq.gz
+*.fq.gz
+!tests/data/stub/*.fastq.gz
+test-data/
+amrfinderdb/
+amrfinderdb.tar.gz
+
+# Secrets
+.env
+.env.*
+*.pem
+.aws/
+credentials
+
+# Plan-execution scratch
+.superpowers/

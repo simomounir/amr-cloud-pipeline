@@ -1,0 +1,8 @@
+.git
+.venv
+.nf-test
+.nextflow*
+work
+results
+test-data
+tests
