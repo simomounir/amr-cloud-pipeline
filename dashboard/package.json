@@ -1,0 +1,38 @@
+{
+  "name": "amr-dashboard",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "fixture-data": "rm -rf public/data && mkdir -p public/data && cp tests/fixtures/data/* public/data/ && echo dataset-fixture > public/data/TAG",
+    "preview:fixture": "npm run fixture-data && vite build && vite preview --port 4173 --strictPort",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "1.32.0",
+    "@observablehq/plot": "0.6.17",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@duckdb/node-api": "1.4.5-r.1",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

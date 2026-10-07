@@ -1,4 +1,4 @@
-exclude: ^(modules/nf-core/|tests/python/fixtures/|tests/data/stub/)
+exclude: ^(modules/nf-core/|tests/python/fixtures/|tests/data/stub/|dashboard/tests/fixtures/data/)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
