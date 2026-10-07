@@ -147,3 +147,10 @@ def test_failed_swap_restores_previous_dataset(tmp_path, monkeypatch):
         build_dataset([run1(tmp_path), run2(tmp_path)], out)
     assert (out / "manifest.json").read_text() == before
     assert not list(tmp_path.glob(".dataset.*"))
+
+
+def test_dataset_folder_is_readable_by_others(tmp_path):
+    # tempfile.mkdtemp creates 0700 folders; a published dataset must be world-readable.
+    out = tmp_path / "dataset"
+    build_dataset([run1(tmp_path)], out)
+    assert out.stat().st_mode & 0o777 == 0o755
