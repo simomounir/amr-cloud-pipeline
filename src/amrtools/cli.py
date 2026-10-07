@@ -8,6 +8,7 @@ import pandas as pd
 
 from amrtools import __version__
 from amrtools.columns import GENE_COLUMNS, SUMMARY_COLUMNS
+from amrtools.ena import SAMPLESHEET_COLUMNS, fetch_samples, http_get, write_csv
 from amrtools.errors import InputFormatError
 from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
@@ -49,6 +50,12 @@ def _parser() -> argparse.ArgumentParser:
 
     schema = commands.add_parser("schema", help="export the results schema as JSON")
     schema.add_argument("--export", type=Path, required=True, dest="schema_dir")
+
+    fetch = commands.add_parser("fetch-samples", help="build a samplesheet from ENA accessions")
+    fetch.add_argument("accessions", nargs="*")
+    fetch.add_argument("--accession-file", type=Path)
+    fetch.add_argument("--organism", required=True)
+    fetch.add_argument("--out", type=Path, required=True)
     return parser
 
 
@@ -97,6 +104,19 @@ def _run_schema(args: argparse.Namespace) -> None:
         print(path)
 
 
+def _run_fetch_samples(args: argparse.Namespace) -> None:
+    accessions = list(args.accessions)
+    if args.accession_file:
+        lines = args.accession_file.read_text().splitlines()
+        accessions += [line.strip() for line in lines if line.strip()]
+    if not accessions:
+        raise InputFormatError("fetch-samples: give accessions or --accession-file")
+    rows, skipped = fetch_samples(accessions, args.organism, get=http_get)
+    write_csv(rows, SAMPLESHEET_COLUMNS, args.out)
+    write_csv(skipped, ["run_accession", "reason"], args.out.with_suffix(".skipped.csv"))
+    print(f"{len(rows)} runs written to {args.out}; {len(skipped)} skipped", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if getattr(args, "outdir", None) is not None:
@@ -106,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         "stub": _run_stub,
         "merge": _run_merge,
         "schema": _run_schema,
+        "fetch-samples": _run_fetch_samples,
     }
     try:
         commands[args.command](args)

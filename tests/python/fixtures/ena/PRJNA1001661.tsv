@@ -1,0 +1,4 @@
+run_accession	sample_accession	study_accession	instrument_platform	library_layout	fastq_ftp	collection_date	country	isolation_source	host
+SRR25501257	SAMN36814837	PRJNA1001661	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/057/SRR25501257/SRR25501257_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/057/SRR25501257/SRR25501257_2.fastq.gz	2021-07	Germany:Bavaria	urine	Homo sapiens
+SRR25501259	SAMN36814835	PRJNA1001661	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/059/SRR25501259/SRR25501259_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/059/SRR25501259/SRR25501259_2.fastq.gz	2021-06	Germany:Bavaria	wound	Homo sapiens
+SRR25501262	SAMN36814832	PRJNA1001661	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/062/SRR25501262/SRR25501262_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR255/062/SRR25501262/SRR25501262_2.fastq.gz	2021-05	Germany:Bavaria	tracheal secretion	Homo sapiens
