@@ -88,6 +88,8 @@ def build_dataset(inputs: list[Path], out: Path) -> dict:
     out.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{out.name}.", dir=out.parent))
     try:
+        staging.chmod(0o755)  # mkdtemp makes 0700; the published dataset must be readable
+
         for name, table in tables.items():
             path = staging / f"{name}.parquet"
             write_table(table, path)
