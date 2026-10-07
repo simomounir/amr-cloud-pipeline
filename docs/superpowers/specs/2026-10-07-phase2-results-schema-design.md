@@ -239,3 +239,17 @@ called in CI.
 - `build-dataset` over that output produces a valid `dataset/` with `manifest.json`.
 - `fetch-samples` on the three test accessions reproduces their metadata columns.
 - README documents fetch → run → build-dataset, and the schema.
+
+## 12. Amendments made during planning
+
+- `country` uses pycountry's `common_name` when present, else `name`
+  (`Vietnam`, `South Korea`, `Iran`), which reads better on a dashboard than strict
+  ISO short names (`Viet Nam`, `Korea, Republic of`).
+- `run_summary.kleborate_species` and `st` are nullable (`NA` from Phase 1 becomes
+  null), like the scores.
+- `amrtools stub` writes typed placeholders (zeros, `qc_status=warn`,
+  `qc_reasons=stub`) so stub runs export valid Parquet.
+- amrtools and the pipeline move to version 0.2.0, because published image tags are
+  immutable.
+- `build-dataset` refuses to replace an existing `--out` folder that has no
+  `manifest.json`, so a typo cannot delete an unrelated folder.
