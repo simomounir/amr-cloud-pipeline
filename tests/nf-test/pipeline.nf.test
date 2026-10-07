@@ -27,6 +27,30 @@ nextflow_pipeline {
         }
     }
 
+    test("ENA metadata with year-only dates and quoted commas runs through") {
+        tag "stub"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub_metadata.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def lines = path("$outputDir/summary/samples.tsv").readLines()
+            def header = lines[0].split('\t', -1) as List
+            def rows = lines.drop(1).collect { [header, it.split('\t', -1) as List].transpose().collectEntries() }
+            def byName = rows.collectEntries { [it.sample, it] }
+            assert byName.stub_a.collection_year == '2022'
+            assert byName.stub_a.collection_date_precision == 'year'
+            assert byName.stub_a.country == 'South Korea'
+            assert byName.stub_b.region == 'Houston'
+        }
+    }
+
     test("samplesheet with unsafe or duplicate sample names is rejected") {
         tag "validation"
         options "-stub"

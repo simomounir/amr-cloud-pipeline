@@ -42,25 +42,46 @@
                 ]
             },
             "run_accession": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "sample_accession": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "study_accession": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "collection_date": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "country": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "isolation_source": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             },
             "host": {
-                "type": "string"
+                "type": [
+                    "string",
+                    "number"
+                ]
             }
         },
         "required": [
