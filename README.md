@@ -22,14 +22,34 @@ reads (Illumina, paired) → fastp → Shovill → AMRFinderPlus ─┐
 
 Samples failing QC thresholds are flagged `warn` with reasons, never dropped.
 
+## Results format
+
+Each run writes versioned Parquet tables to `results/parquet/`; `build-dataset`
+combines runs (newest run wins per sample) into `dataset/` with a `manifest.json`.
+
+| Table | One row per | Highlights |
+|---|---|---|
+| `samples` | sample | ENA accessions, collection year/month, country, region, isolation source category, host (raw values kept) |
+| `run_summary` | sample | species, ST, scores, QC |
+| `amr_genes` | detected element | gene, drug class, identity, coverage |
+
+Schema v1.0.0 is documented in [schemas/v1.0.0](schemas/v1.0.0). Check any folder with
+`amrtools validate <dir>`.
+
 ## Run it
 
-Requirements: Docker, Java 17+, Nextflow ≥ 25.04.
+Requirements: Docker, Java 17+, Nextflow ≥ 25.04, Python 3.12 (for `amrtools`).
 
 ```bash
-nextflow run . -profile test,docker            # tiny K. pneumoniae dataset
+pip install .                                   # provides the amrtools command
+amrtools fetch-samples PRJNA376414 --organism Klebsiella_pneumoniae --out samples.csv
 nextflow run . -profile docker --input samples.csv --outdir results
+amrtools build-dataset results/parquet --out dataset
 ```
+
+`fetch-samples` accepts run, sample or study accessions, keeps Illumina paired-end
+runs and lists skipped runs in `samples.skipped.csv`. `nextflow run . -profile test,docker`
+runs the tiny test dataset.
 
 Samplesheet:
 
@@ -62,8 +82,8 @@ Test data: see [tests/data/README.md](tests/data/README.md).
 
 ## Roadmap
 
-1. **Phase 1 (this):** local pipeline, tests, CI
-2. Phase 2: versioned Parquet results schema
+1. Phase 1: local pipeline, tests, CI
+2. **Phase 2:** versioned Parquet results schema, ENA metadata
 3. Phase 3: static dashboard (DuckDB-WASM on GitHub Pages)
 4. Phase 4: AWS Batch with Terraform, real cost per sample
 5. Phase 6: metagenome mode on the same platform
