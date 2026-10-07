@@ -32,7 +32,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=$(gh release list --limit 100 --json tagName,createdAt -q '[.[] | select(.tagName | startswith("dataset-"))] | sort_by(.createdAt) | last | .tagName')
+          # dataset-YYYY-MM-DD tags sort by date; release createdAt is the tagged commit's date.
+          tag=$(gh release list --limit 100 --json tagName -q '[.[] | select(.tagName | startswith("dataset-"))] | sort_by(.tagName) | last | .tagName')
           if [ -z "$tag" ] || [ "$tag" = "null" ]; then echo "::error::No dataset-* release found"; exit 1; fi
           mkdir -p dashboard/public/data
           gh release download "$tag" --dir dashboard/public/data --pattern '*.parquet' --pattern manifest.json

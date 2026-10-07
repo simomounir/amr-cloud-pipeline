@@ -13,7 +13,8 @@ export function Timeline({ rows }: { rows: TimelineRow[] }) {
       height: 280,
       marginLeft: 40,
       x: { label: "Collection year", type: "band" },
-      y: { label: "Isolates", grid: true },
+      // An isolate with two carbapenemase families is stacked once per family.
+      y: { label: "Isolates per carbapenemase family", grid: true },
       color: { domain: FAMILIES, range: COLOURS, legend: true },
       marks: [Plot.barY(rows, { x: "year", y: "isolates", fill: "family", tip: true }), Plot.ruleY([0])],
     }),

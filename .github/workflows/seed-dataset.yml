@@ -63,6 +63,8 @@ jobs:
 
   combine:
     needs: run
+    # Build from the shards that finished, even if another shard failed.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,6 +76,7 @@ jobs:
         run: docker build -f containers/amrtools/Dockerfile -t "$AMRTOOLS_IMAGE" .
       - name: Build dataset
         run: |
+          ls -d shards/seed-shard-*/results/parquet || { echo "::error::No shard produced results"; exit 1; }
           docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work "$AMRTOOLS_IMAGE" \
             amrtools build-dataset shards/seed-shard-*/results/parquet --out dataset
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

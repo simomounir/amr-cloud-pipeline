@@ -15,6 +15,12 @@ export function FilterBar({
   optionRows: Partial<Record<ListFilter, OptionRow[]>>;
   years: { min: number | null; max: number | null };
 }) {
+  // Keep ticked values listed (with 0) even when other filters leave them no isolates.
+  const listed = (key: ListFilter): OptionRow[] => {
+    const rows = optionRows[key] ?? [];
+    const missing = filters[key].filter((v) => !rows.some((o) => o.value === v));
+    return [...rows, ...missing.map((value) => ({ value, isolates: 0 }))];
+  };
   const toggle = (key: ListFilter, value: string) => {
     const current = filters[key];
     onChange({ ...filters, [key]: current.includes(value) ? current.filter((v) => v !== value) : [...current, value] });
@@ -38,7 +44,7 @@ export function FilterBar({
         <fieldset key={key}>
           <legend>{LABELS[key]}</legend>
           <div className="options">
-            {(optionRows[key] ?? []).map((o) => (
+            {listed(key).map((o) => (
               <label key={o.value}>
                 <input type="checkbox" checked={filters[key].includes(o.value)} onChange={() => toggle(key, o.value)} />
                 {key === "sources" ? o.value.replace(/_/g, " ") : o.value} ({o.isolates})

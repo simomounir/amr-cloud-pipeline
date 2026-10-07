@@ -95,7 +95,11 @@ def clean_country(raw: str | None) -> tuple[str | None, str | None]:
 
 
 def _is_human(host: str | None) -> bool:
-    return is_missing(host) or host.strip().lower() == "homo sapiens"
+    """Missing hosts count as human: almost all public K. pneumoniae isolates are clinical."""
+    if is_missing(host):
+        return True
+    text = host.strip().lower()
+    return text.startswith("homo sapiens") or text in ("human", "humans")
 
 
 def categorize_source(raw: str | None, host: str | None = None) -> str:

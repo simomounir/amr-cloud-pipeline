@@ -121,6 +121,11 @@ def test_clean_host_and_text():
         ("rectal swab", "homo sapiens ", "screening"),
         ("rectal swab", "not provided", "screening"),
         ("rectal swab", None, "screening"),
+        ("blood", "human", "blood"),
+        ("blood", "Human", "blood"),
+        ("blood", "humans", "blood"),
+        ("urine", "Homo sapiens sapiens", "urine"),
+        ("blood", "Homo sapiens; female", "blood"),
     ],
 )
 def test_non_human_host_is_animal(raw, host, expected):

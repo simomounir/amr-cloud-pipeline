@@ -21,3 +21,24 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   expect(text.trim().split("\n")).toHaveLength(3);
   await expect(page.getByText("Public data; demonstrates a method, not surveillance findings.")).toBeVisible();
 });
+
+test("timeline axis says it counts per family", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByTestId("headline-isolates")).toHaveText("5");
+  await expect(page.locator("figure svg").getByText("Isolates per carbapenemase family", { exact: false })).toBeVisible();
+});
+
+test("a ticked filter stays visible when its count drops to zero", async ({ page }) => {
+  await page.goto("./");
+  const isolates = page.getByTestId("headline-isolates");
+  await expect(isolates).toHaveText("5");
+  await page.getByRole("checkbox", { name: /United States/ }).check();
+  await page.getByRole("checkbox", { name: "Carbapenemase carriers only" }).check();
+  await expect(isolates).toHaveText("0");
+  const us = page.getByRole("checkbox", { name: /United States \(0\)/ });
+  await expect(us).toBeChecked();
+  // Unticking makes it disappear again (0 isolates, not selected), so click rather than uncheck().
+  await us.click();
+  await expect(isolates).toHaveText("3");
+  await expect(page.getByRole("checkbox", { name: /United States/ })).toHaveCount(0);
+});
