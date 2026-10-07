@@ -12,6 +12,7 @@ from amrtools.errors import InputFormatError
 from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
+from amrtools.schema import export_json
 
 
 def _add_identity(parser: argparse.ArgumentParser) -> None:
@@ -45,6 +46,9 @@ def _parser() -> argparse.ArgumentParser:
     merge.add_argument("--genes", type=Path, nargs="+", required=True)
     merge.add_argument("--summaries", type=Path, nargs="+", required=True)
     merge.add_argument("--outdir", type=Path, default=Path("."))
+
+    schema = commands.add_parser("schema", help="export the results schema as JSON")
+    schema.add_argument("--export", type=Path, required=True, dest="schema_dir")
     return parser
 
 
@@ -88,10 +92,21 @@ def _run_merge(args: argparse.Namespace) -> None:
     write_tsv(merge_tables(args.summaries, SUMMARY_COLUMNS), args.outdir / "run_summary.tsv")
 
 
+def _run_schema(args: argparse.Namespace) -> None:
+    for path in export_json(args.schema_dir):
+        print(path)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    args.outdir.mkdir(parents=True, exist_ok=True)
-    commands = {"sample": _run_sample, "stub": _run_stub, "merge": _run_merge}
+    if getattr(args, "outdir", None) is not None:
+        args.outdir.mkdir(parents=True, exist_ok=True)
+    commands = {
+        "sample": _run_sample,
+        "stub": _run_stub,
+        "merge": _run_merge,
+        "schema": _run_schema,
+    }
     try:
         commands[args.command](args)
     except (InputFormatError, FileNotFoundError) as exc:

@@ -1,0 +1,108 @@
+{
+  "table": "run_summary",
+  "schema_version": "1.0.0",
+  "columns": [
+    {
+      "name": "sample",
+      "type": "string",
+      "nullable": false,
+      "description": "Sample name from the samplesheet"
+    },
+    {
+      "name": "sample_type",
+      "type": "string",
+      "nullable": false,
+      "description": "isolate (metagenome in a later phase)"
+    },
+    {
+      "name": "organism",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus organism, e.g. Klebsiella_pneumoniae"
+    },
+    {
+      "name": "kleborate_species",
+      "type": "string",
+      "nullable": true,
+      "description": "Species called by Kleborate"
+    },
+    {
+      "name": "st",
+      "type": "string",
+      "nullable": true,
+      "description": "MLST sequence type, e.g. ST147"
+    },
+    {
+      "name": "resistance_score",
+      "type": "int8",
+      "nullable": true,
+      "description": "Kleborate resistance score"
+    },
+    {
+      "name": "virulence_score",
+      "type": "int8",
+      "nullable": true,
+      "description": "Kleborate virulence score"
+    },
+    {
+      "name": "reads_after_qc",
+      "type": "int64",
+      "nullable": false,
+      "description": "Reads kept by fastp"
+    },
+    {
+      "name": "q30_rate",
+      "type": "double",
+      "nullable": false,
+      "description": "Fraction of bases >= Q30 after fastp"
+    },
+    {
+      "name": "assembly_length",
+      "type": "int64",
+      "nullable": false,
+      "description": "Total assembly length (bp)"
+    },
+    {
+      "name": "n_contigs",
+      "type": "int32",
+      "nullable": false,
+      "description": "Number of contigs"
+    },
+    {
+      "name": "n50",
+      "type": "int64",
+      "nullable": false,
+      "description": "Assembly N50 (bp)"
+    },
+    {
+      "name": "n_amr_genes",
+      "type": "int32",
+      "nullable": false,
+      "description": "AMR elements (genes and point mutations)"
+    },
+    {
+      "name": "qc_status",
+      "type": "string",
+      "nullable": false,
+      "description": "pass or warn"
+    },
+    {
+      "name": "qc_reasons",
+      "type": "string",
+      "nullable": false,
+      "description": "Failed QC checks joined by ';', empty if none"
+    },
+    {
+      "name": "run_id",
+      "type": "string",
+      "nullable": false,
+      "description": "Nextflow session id of the producing run"
+    },
+    {
+      "name": "run_started_at",
+      "type": "timestamp[us, tz=UTC]",
+      "nullable": false,
+      "description": "Start time of the producing run (UTC)"
+    }
+  ]
+}

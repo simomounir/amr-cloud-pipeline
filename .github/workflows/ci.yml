@@ -13,7 +13,7 @@ permissions:
 env:
   NXF_VER: "26.04.6"
   NFT_VER: "0.9.5"
-  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.1.0
+  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.2.0
 
 jobs:
   lint:
