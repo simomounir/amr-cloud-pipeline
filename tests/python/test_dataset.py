@@ -7,6 +7,7 @@ from dataset_helpers import T1, T2, gene_record, sample_record, summary_record, 
 import amrtools.dataset
 from amrtools.cli import main
 from amrtools.dataset import build_dataset
+from amrtools.schema import SCHEMA_VERSION
 from amrtools.validate import DatasetError, validate_dir
 
 
@@ -31,7 +32,7 @@ def run2(tmp_path):
 
 def test_single_run_dataset_has_manifest_and_validates(tmp_path):
     manifest = build_dataset([run1(tmp_path)], tmp_path / "dataset")
-    assert manifest["schema_version"] == "1.0.0"
+    assert manifest["schema_version"] == SCHEMA_VERSION
     assert manifest["tables"]["samples"]["rows"] == 2
     assert manifest["runs"] == [{"run_id": "r1", "run_started_at": T1.isoformat(), "samples": 2}]
     validate_dir(tmp_path / "dataset")

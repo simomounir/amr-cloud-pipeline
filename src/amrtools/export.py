@@ -58,7 +58,7 @@ def _sample_records(rows, run) -> list[dict]:
                 "region": region,
                 "country_raw": clean_text(row.get("country")),
                 "isolation_source_raw": clean_text(row.get("isolation_source")),
-                "source_category": categorize_source(row.get("isolation_source")),
+                "source_category": categorize_source(row.get("isolation_source"), row.get("host")),
                 "host": clean_host(row.get("host")),
             }
             | run

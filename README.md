@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/simomounir/amr-cloud-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/simomounir/amr-cloud-pipeline/actions/workflows/ci.yml)
 
+**Live dashboard:** https://simomounir.github.io/amr-cloud-pipeline/ (public data; demonstrates a method)
+
 Detects antimicrobial-resistance genes in bacterial isolate genomes. A Nextflow
 pipeline built to run the same way on a laptop, in CI and on AWS Batch.
 
@@ -78,6 +80,17 @@ tar czf amrfinderdb.tar.gz -C "amrfinderdb/$(readlink amrfinderdb/latest)" .
 On Apple Silicon, containers run as `linux/amd64` under emulation: give Docker
 Desktop at least 8 GB of memory and expect slow assemblies.
 
+## Dashboard
+
+A static site on GitHub Pages ([dashboard/](dashboard/)) that loads the newest
+`dataset-*` Release and runs every query in the visitor's browser with DuckDB-WASM:
+headline numbers, carbapenemase families over time, the most common AMR elements, and
+an isolate table with CSV export. There is no server or database; hosting is free.
+
+Datasets are published with `scripts/publish-dataset.sh` from a workflow artifact; the
+first one comes from the `Seed dataset` workflow (30 public isolates processed on
+GitHub Actions, see [data/README.md](data/README.md)).
+
 ## Tests
 
 | Layer | Command | Runs in CI |
@@ -85,14 +98,15 @@ Desktop at least 8 GB of memory and expect slow assemblies.
 | Python unit tests | `pytest` | every push |
 | Pipeline wiring (stub) and input validation | `nf-test test tests/ --tag stub,validation --profile test,docker` | every push |
 | Full tiny-dataset run | `nf-test test tests/ --tag full --profile test,docker` | push to main |
+| Dashboard: lint, types, SQL query tests, browser smoke test | `cd dashboard && npm test && npm run e2e` | every PR and push to main |
 
 Test data: see [tests/data/README.md](tests/data/README.md).
 
 ## Roadmap
 
 1. Phase 1: local pipeline, tests, CI
-2. **Phase 2:** versioned Parquet results schema, ENA metadata
-3. Phase 3: static dashboard (DuckDB-WASM on GitHub Pages)
+2. Phase 2: versioned Parquet results schema, ENA metadata
+3. **Phase 3:** static dashboard (DuckDB-WASM on GitHub Pages)
 4. Phase 4: AWS Batch with Terraform, real cost per sample
 5. Phase 6: metagenome mode on the same platform
 

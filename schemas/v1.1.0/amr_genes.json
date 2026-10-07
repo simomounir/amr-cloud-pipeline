@@ -1,0 +1,108 @@
+{
+  "table": "amr_genes",
+  "schema_version": "1.1.0",
+  "columns": [
+    {
+      "name": "sample",
+      "type": "string",
+      "nullable": false,
+      "description": "Sample name from the samplesheet"
+    },
+    {
+      "name": "sample_type",
+      "type": "string",
+      "nullable": false,
+      "description": "isolate (metagenome in a later phase)"
+    },
+    {
+      "name": "organism",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus organism, e.g. Klebsiella_pneumoniae"
+    },
+    {
+      "name": "gene_symbol",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus element symbol"
+    },
+    {
+      "name": "element_name",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus element name"
+    },
+    {
+      "name": "element_type",
+      "type": "string",
+      "nullable": false,
+      "description": "AMR, STRESS or VIRULENCE"
+    },
+    {
+      "name": "element_subtype",
+      "type": "string",
+      "nullable": false,
+      "description": "AMR, POINT, STRESS, VIRULENCE, ..."
+    },
+    {
+      "name": "drug_class",
+      "type": "string",
+      "nullable": true,
+      "description": "Drug class"
+    },
+    {
+      "name": "drug_subclass",
+      "type": "string",
+      "nullable": true,
+      "description": "Drug subclass"
+    },
+    {
+      "name": "method",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus detection method"
+    },
+    {
+      "name": "pct_identity",
+      "type": "double",
+      "nullable": false,
+      "description": "Percent identity to reference"
+    },
+    {
+      "name": "pct_coverage",
+      "type": "double",
+      "nullable": false,
+      "description": "Percent coverage of reference"
+    },
+    {
+      "name": "contig_id",
+      "type": "string",
+      "nullable": true,
+      "description": "Contig carrying the element"
+    },
+    {
+      "name": "amrfinder_version",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus software version"
+    },
+    {
+      "name": "amrfinder_db_version",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus database version"
+    },
+    {
+      "name": "run_id",
+      "type": "string",
+      "nullable": false,
+      "description": "Nextflow session id of the producing run"
+    },
+    {
+      "name": "run_started_at",
+      "type": "timestamp[us, tz=UTC]",
+      "nullable": false,
+      "description": "Start time of the producing run (UTC)"
+    }
+  ]
+}
