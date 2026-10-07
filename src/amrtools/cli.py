@@ -10,6 +10,7 @@ from amrtools import __version__
 from amrtools.columns import GENE_COLUMNS, SUMMARY_COLUMNS
 from amrtools.ena import SAMPLESHEET_COLUMNS, fetch_samples, http_get, write_csv
 from amrtools.errors import InputFormatError
+from amrtools.export import export_run
 from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
@@ -60,6 +61,15 @@ def _parser() -> argparse.ArgumentParser:
 
     validate = commands.add_parser("validate", help="check Parquet results against the schema")
     validate.add_argument("directory", type=Path)
+
+    export = commands.add_parser("export", help="write a run's results as Parquet")
+    export.add_argument("--samplesheet", type=Path, required=True)
+    export.add_argument("--genes", type=Path, required=True)
+    export.add_argument("--summary", type=Path, required=True)
+    export.add_argument("--run-id", required=True)
+    export.add_argument("--run-started-at", required=True)
+    export.add_argument("--outdir", type=Path, required=True)
+    export.add_argument("--samples-tsv", type=Path)
     return parser
 
 
@@ -90,6 +100,14 @@ def _run_stub(args: argparse.Namespace) -> None:
         "sample": args.sample,
         "sample_type": args.sample_type,
         "organism": args.organism,
+        "reads_after_qc": 0,
+        "q30_rate": 0.0,
+        "assembly_length": 0,
+        "n_contigs": 0,
+        "n50": 0,
+        "n_amr_genes": 0,
+        "qc_status": "warn",
+        "qc_reasons": "stub",
     }
     write_tsv(pd.DataFrame(columns=GENE_COLUMNS), args.outdir / f"{args.sample}.amr_genes.tsv")
     write_tsv(
@@ -127,6 +145,18 @@ def _run_validate(args: argparse.Namespace) -> None:
     print(f"{args.directory}: valid ({counts})", file=sys.stderr)
 
 
+def _run_export(args: argparse.Namespace) -> None:
+    export_run(
+        samplesheet=args.samplesheet,
+        genes_tsv=args.genes,
+        summary_tsv=args.summary,
+        run_id=args.run_id,
+        run_started_at=args.run_started_at,
+        outdir=args.outdir,
+        samples_tsv=args.samples_tsv,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if getattr(args, "outdir", None) is not None:
@@ -138,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
         "schema": _run_schema,
         "fetch-samples": _run_fetch_samples,
         "validate": _run_validate,
+        "export": _run_export,
     }
     try:
         commands[args.command](args)
