@@ -10,7 +10,9 @@
                 "type": "string",
                 "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
                 "errorMessage": "sample may only contain letters, digits, '_', '.' and '-', and must start with a letter or digit",
-                "meta": ["id"]
+                "meta": [
+                    "id"
+                ]
             },
             "fastq_1": {
                 "type": "string",
@@ -24,17 +26,52 @@
             },
             "sample_type": {
                 "type": "string",
-                "enum": ["isolate"],
-                "meta": ["sample_type"]
+                "enum": [
+                    "isolate"
+                ],
+                "meta": [
+                    "sample_type"
+                ]
             },
             "organism": {
                 "type": "string",
                 "pattern": "^[A-Z][a-z]+_[a-z]+$",
                 "errorMessage": "organism must use AMRFinderPlus naming, e.g. Klebsiella_pneumoniae",
-                "meta": ["organism"]
+                "meta": [
+                    "organism"
+                ]
+            },
+            "run_accession": {
+                "type": "string"
+            },
+            "sample_accession": {
+                "type": "string"
+            },
+            "study_accession": {
+                "type": "string"
+            },
+            "collection_date": {
+                "type": "string"
+            },
+            "country": {
+                "type": "string"
+            },
+            "isolation_source": {
+                "type": "string"
+            },
+            "host": {
+                "type": "string"
             }
         },
-        "required": ["sample", "fastq_1", "fastq_2", "sample_type", "organism"]
+        "required": [
+            "sample",
+            "fastq_1",
+            "fastq_2",
+            "sample_type",
+            "organism"
+        ]
     },
-    "uniqueEntries": ["sample"]
+    "uniqueEntries": [
+        "sample"
+    ]
 }

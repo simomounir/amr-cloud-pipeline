@@ -146,3 +146,14 @@ def test_cli_writes_samplesheet_and_skipped(tmp_path, monkeypatch):
         assert [r["sample"] for r in csv.DictReader(handle)] == ["ERR14097885", "SRR5386028"]
     skipped = (tmp_path / "samplesheet.skipped.csv").read_text().splitlines()
     assert skipped == ["run_accession,reason", "ERR10317397,platform OXFORD_NANOPORE"]
+
+
+def test_test_samplesheet_metadata_matches_ena():
+    sheet = Path(__file__).resolve().parents[2] / "tests" / "data" / "samplesheet_test.csv"
+    with open(sheet, newline="") as handle:
+        expected = {row["sample"]: row for row in csv.DictReader(handle)}
+    rows, _ = fetch_samples(list(expected), KP, get=fixture_get)
+    for row in rows:
+        for column in ("sample_accession", "study_accession", "collection_date", "country",
+                       "isolation_source", "host"):  # fmt: skip
+            assert row[column] == expected[row["sample"]][column]
