@@ -14,6 +14,7 @@ from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
 from amrtools.schema import export_json
+from amrtools.validate import validate_dir
 
 
 def _add_identity(parser: argparse.ArgumentParser) -> None:
@@ -56,6 +57,9 @@ def _parser() -> argparse.ArgumentParser:
     fetch.add_argument("--accession-file", type=Path)
     fetch.add_argument("--organism", required=True)
     fetch.add_argument("--out", type=Path, required=True)
+
+    validate = commands.add_parser("validate", help="check Parquet results against the schema")
+    validate.add_argument("directory", type=Path)
     return parser
 
 
@@ -117,6 +121,12 @@ def _run_fetch_samples(args: argparse.Namespace) -> None:
     print(f"{len(rows)} runs written to {args.out}; {len(skipped)} skipped", file=sys.stderr)
 
 
+def _run_validate(args: argparse.Namespace) -> None:
+    tables = validate_dir(args.directory)
+    counts = ", ".join(f"{name} {table.num_rows}" for name, table in tables.items())
+    print(f"{args.directory}: valid ({counts})", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if getattr(args, "outdir", None) is not None:
@@ -127,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         "merge": _run_merge,
         "schema": _run_schema,
         "fetch-samples": _run_fetch_samples,
+        "validate": _run_validate,
     }
     try:
         commands[args.command](args)
