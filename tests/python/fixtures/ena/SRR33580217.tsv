@@ -1,0 +1,2 @@
+run_accession	sample_accession	study_accession	instrument_platform	library_layout	fastq_ftp	collection_date	country	isolation_source	host
+SRR33580217	SAMN48516987	PRJNA1001661	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/SRR335/017/SRR33580217/SRR33580217_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR335/017/SRR33580217/SRR33580217_2.fastq.gz	2023	Germany:Bavaria	clinical	Homo sapiens

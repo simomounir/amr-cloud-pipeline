@@ -1,0 +1,3 @@
+sample,fastq_1,fastq_2,sample_type,organism,run_accession,sample_accession,study_accession,collection_date,country,isolation_source,host
+stub_a,stub/stub_a_R1.fastq.gz,stub/stub_a_R2.fastq.gz,isolate,Klebsiella_pneumoniae,SRR1,SAMN1,PRJNA1,2022,"Korea, Republic of",blood,Homo sapiens
+stub_b,stub/stub_b_R1.fastq.gz,stub/stub_b_R2.fastq.gz,isolate,Klebsiella_pneumoniae,SRR2,SAMN2,PRJNA1,2014-09-28,USA: Houston,urine,Homo sapiens

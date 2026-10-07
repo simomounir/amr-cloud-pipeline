@@ -5,10 +5,12 @@ include { AMRFINDERPLUS_RUN    } from '../modules/nf-core/amrfinderplus/run/main
 include { KLEBORATE            } from '../modules/local/kleborate/main'
 include { AMRTOOLS_SAMPLE      } from '../modules/local/amrtools/sample/main'
 include { AMRTOOLS_MERGE       } from '../modules/local/amrtools/merge/main'
+include { AMRTOOLS_EXPORT      } from '../modules/local/amrtools/export/main'
 
 workflow ISOLATE {
     take:
-    ch_samples // [meta, [fastq_1, fastq_2]]
+    ch_samples     // [meta, [fastq_1, fastq_2]]
+    ch_samplesheet // value channel: the samplesheet file
 
     main:
     FASTP(ch_samples.map { meta, reads -> [meta, reads, []] }, false, false, false)
@@ -42,7 +44,10 @@ workflow ISOLATE {
         AMRTOOLS_SAMPLE.out.summary.map { meta, table -> table }.collect()
     )
 
+    AMRTOOLS_EXPORT(ch_samplesheet, AMRTOOLS_MERGE.out.genes, AMRTOOLS_MERGE.out.summary)
+
     emit:
     genes   = AMRTOOLS_MERGE.out.genes
     summary = AMRTOOLS_MERGE.out.summary
+    parquet = AMRTOOLS_EXPORT.out.parquet
 }

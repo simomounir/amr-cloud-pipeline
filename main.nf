@@ -21,7 +21,8 @@ workflow {
 
     // Output files are named by sample, so names that differ only in case collide
     // on case-insensitive file systems (macOS default).
-    def clashes = rows.collect { meta, fastq_1, fastq_2 -> meta.id }
+    // Rows are [meta, fastq_1, fastq_2, <optional metadata columns>].
+    def clashes = rows.collect { row -> row[0].id }
         .groupBy { id -> id.toLowerCase() }
         .findAll { key, ids -> ids.size() > 1 }
         .values()
@@ -30,9 +31,9 @@ workflow {
     }
 
     def samplesheetDir = file(params.input).parent
-    def samples = rows.collect { meta, fastq_1, fastq_2 ->
-        [meta + [single_end: false], [resolveFastq(fastq_1, samplesheetDir), resolveFastq(fastq_2, samplesheetDir)]]
+    def samples = rows.collect { row ->
+        [row[0] + [single_end: false], [resolveFastq(row[1], samplesheetDir), resolveFastq(row[2], samplesheetDir)]]
     }
 
-    ISOLATE(channel.fromList(samples))
+    ISOLATE(channel.fromList(samples), channel.value(file(params.input)))
 }

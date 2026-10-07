@@ -13,7 +13,7 @@ permissions:
 env:
   NXF_VER: "26.04.6"
   NFT_VER: "0.9.5"
-  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.1.0
+  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.2.0
 
 jobs:
   lint:
@@ -95,11 +95,17 @@ jobs:
         env:
           AMRFINDER_DB: ${{ github.workspace }}/amrfinderdb.tar.gz
         run: nf-test test tests/ --tag full --profile test,docker
+      - name: Build dataset from the run
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work "$AMRTOOLS_IMAGE" \
+            amrtools build-dataset $(ls -d .nf-test/tests/*/output/parquet) --out dataset
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: tiny-dataset-results
-          path: .nf-test/tests/*/output/summary/
+          path: |
+            .nf-test/tests/*/output/summary/
+            dataset/
           if-no-files-found: warn
 
   publish-image:

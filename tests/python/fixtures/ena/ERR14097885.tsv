@@ -1,0 +1,2 @@
+run_accession	sample_accession	study_accession	instrument_platform	library_layout	fastq_ftp	collection_date	country	isolation_source	host
+ERR14097885	SAMEA117560408	PRJEB50614	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/ERR140/085/ERR14097885/ERR14097885_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR140/085/ERR14097885/ERR14097885_2.fastq.gz	2022	India	Pus	Homo sapiens

@@ -20,6 +20,34 @@ nextflow_pipeline {
             assert summary.size() == 4
             assert summary.drop(1).collect { it.split('\t')[0] } == ['stub_a', 'stub_b', 'stub_c']
             assert path("$outputDir/summary/amr_genes.tsv").exists()
+            ['samples', 'amr_genes', 'run_summary'].each { table ->
+                assert path("$outputDir/parquet/${table}.parquet").exists()
+            }
+            assert path("$outputDir/summary/samples.tsv").readLines().size() == 4
+        }
+    }
+
+    test("ENA metadata with year-only dates and quoted commas runs through") {
+        tag "stub"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub_metadata.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def lines = path("$outputDir/summary/samples.tsv").readLines()
+            def header = lines[0].split('\t', -1) as List
+            def rows = lines.drop(1).collect { [header, it.split('\t', -1) as List].transpose().collectEntries() }
+            def byName = rows.collectEntries { [it.sample, it] }
+            assert byName.stub_a.collection_year == '2022'
+            assert byName.stub_a.collection_date_precision == 'year'
+            assert byName.stub_a.country == 'South Korea'
+            assert byName.stub_b.region == 'Houston'
         }
     }
 
@@ -123,6 +151,13 @@ nextflow_pipeline {
             def symbols = { sample -> genes.findAll { it.sample == sample }*.gene_symbol }
 
             assert summary.keySet() == ['ERR14097885', 'SRR33580217', 'SRR5386028'] as Set
+            def samples = readTsv(path("$outputDir/summary/samples.tsv")).collectEntries { [it.sample, it] }
+            assert samples.SRR5386028.country == 'United States'
+            assert samples.SRR5386028.region == 'Houston'
+            assert samples.SRR5386028.collection_year == '2014'
+            assert samples.SRR5386028.source_category == 'urine'
+            assert samples.ERR14097885.source_category == 'wound'
+            assert samples.SRR33580217.region == 'Bavaria'
             assert summary.values().every { it.kleborate_species == 'Klebsiella pneumoniae' }
             assert summary.SRR5386028.st == 'ST13'
             assert summary.ERR14097885.st == 'ST147'

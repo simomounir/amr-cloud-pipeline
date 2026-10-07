@@ -8,10 +8,15 @@ import pandas as pd
 
 from amrtools import __version__
 from amrtools.columns import GENE_COLUMNS, SUMMARY_COLUMNS
+from amrtools.dataset import build_dataset
+from amrtools.ena import SAMPLESHEET_COLUMNS, fetch_samples, http_get, write_csv
 from amrtools.errors import InputFormatError
+from amrtools.export import export_run
 from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
+from amrtools.schema import export_json
+from amrtools.validate import validate_dir
 
 
 def _add_identity(parser: argparse.ArgumentParser) -> None:
@@ -45,6 +50,31 @@ def _parser() -> argparse.ArgumentParser:
     merge.add_argument("--genes", type=Path, nargs="+", required=True)
     merge.add_argument("--summaries", type=Path, nargs="+", required=True)
     merge.add_argument("--outdir", type=Path, default=Path("."))
+
+    schema = commands.add_parser("schema", help="export the results schema as JSON")
+    schema.add_argument("--export", type=Path, required=True, dest="schema_dir")
+
+    fetch = commands.add_parser("fetch-samples", help="build a samplesheet from ENA accessions")
+    fetch.add_argument("accessions", nargs="*")
+    fetch.add_argument("--accession-file", type=Path)
+    fetch.add_argument("--organism", required=True)
+    fetch.add_argument("--out", type=Path, required=True)
+
+    validate = commands.add_parser("validate", help="check Parquet results against the schema")
+    validate.add_argument("directory", type=Path)
+
+    export = commands.add_parser("export", help="write a run's results as Parquet")
+    export.add_argument("--samplesheet", type=Path, required=True)
+    export.add_argument("--genes", type=Path, required=True)
+    export.add_argument("--summary", type=Path, required=True)
+    export.add_argument("--run-id", required=True)
+    export.add_argument("--run-started-at", required=True)
+    export.add_argument("--outdir", type=Path, required=True)
+    export.add_argument("--samples-tsv", type=Path)
+
+    build = commands.add_parser("build-dataset", help="combine run folders into one dataset")
+    build.add_argument("inputs", type=Path, nargs="+")
+    build.add_argument("--out", type=Path, required=True)
     return parser
 
 
@@ -75,6 +105,14 @@ def _run_stub(args: argparse.Namespace) -> None:
         "sample": args.sample,
         "sample_type": args.sample_type,
         "organism": args.organism,
+        "reads_after_qc": 0,
+        "q30_rate": 0.0,
+        "assembly_length": 0,
+        "n_contigs": 0,
+        "n50": 0,
+        "n_amr_genes": 0,
+        "qc_status": "warn",
+        "qc_reasons": "stub",
     }
     write_tsv(pd.DataFrame(columns=GENE_COLUMNS), args.outdir / f"{args.sample}.amr_genes.tsv")
     write_tsv(
@@ -88,10 +126,62 @@ def _run_merge(args: argparse.Namespace) -> None:
     write_tsv(merge_tables(args.summaries, SUMMARY_COLUMNS), args.outdir / "run_summary.tsv")
 
 
+def _run_schema(args: argparse.Namespace) -> None:
+    for path in export_json(args.schema_dir):
+        print(path)
+
+
+def _run_fetch_samples(args: argparse.Namespace) -> None:
+    accessions = list(args.accessions)
+    if args.accession_file:
+        lines = args.accession_file.read_text().splitlines()
+        accessions += [line.strip() for line in lines if line.strip()]
+    if not accessions:
+        raise InputFormatError("fetch-samples: give accessions or --accession-file")
+    rows, skipped = fetch_samples(accessions, args.organism, get=http_get)
+    write_csv(rows, SAMPLESHEET_COLUMNS, args.out)
+    write_csv(skipped, ["run_accession", "reason"], args.out.with_suffix(".skipped.csv"))
+    print(f"{len(rows)} runs written to {args.out}; {len(skipped)} skipped", file=sys.stderr)
+
+
+def _run_validate(args: argparse.Namespace) -> None:
+    tables = validate_dir(args.directory)
+    counts = ", ".join(f"{name} {table.num_rows}" for name, table in tables.items())
+    print(f"{args.directory}: valid ({counts})", file=sys.stderr)
+
+
+def _run_export(args: argparse.Namespace) -> None:
+    export_run(
+        samplesheet=args.samplesheet,
+        genes_tsv=args.genes,
+        summary_tsv=args.summary,
+        run_id=args.run_id,
+        run_started_at=args.run_started_at,
+        outdir=args.outdir,
+        samples_tsv=args.samples_tsv,
+    )
+
+
+def _run_build_dataset(args: argparse.Namespace) -> None:
+    manifest = build_dataset(args.inputs, args.out)
+    rows = ", ".join(f"{name} {entry['rows']}" for name, entry in manifest["tables"].items())
+    print(f"{args.out}: {len(manifest['runs'])} runs ({rows})", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    args.outdir.mkdir(parents=True, exist_ok=True)
-    commands = {"sample": _run_sample, "stub": _run_stub, "merge": _run_merge}
+    if getattr(args, "outdir", None) is not None:
+        args.outdir.mkdir(parents=True, exist_ok=True)
+    commands = {
+        "sample": _run_sample,
+        "stub": _run_stub,
+        "merge": _run_merge,
+        "schema": _run_schema,
+        "fetch-samples": _run_fetch_samples,
+        "validate": _run_validate,
+        "export": _run_export,
+        "build-dataset": _run_build_dataset,
+    }
     try:
         commands[args.command](args)
     except (InputFormatError, FileNotFoundError) as exc:

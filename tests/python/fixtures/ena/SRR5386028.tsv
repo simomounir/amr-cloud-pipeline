@@ -1,0 +1,2 @@
+run_accession	sample_accession	study_accession	instrument_platform	library_layout	fastq_ftp	collection_date	country	isolation_source	host
+SRR5386028	SAMN06438663	PRJNA376414	ILLUMINA	PAIRED	ftp.sra.ebi.ac.uk/vol1/fastq/SRR538/008/SRR5386028/SRR5386028_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR538/008/SRR5386028/SRR5386028_2.fastq.gz	2014-09-28	USA: Houston	urine	Homo sapiens
