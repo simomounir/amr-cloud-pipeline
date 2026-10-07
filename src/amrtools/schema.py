@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pyarrow as pa
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 SCHEMA_MAJOR = 1
 
 SOURCE_CATEGORIES = (
     "blood", "urine", "respiratory", "screening", "wound",
-    "other_clinical", "environmental", "unknown",
+    "other_clinical", "environmental", "animal", "unknown",
 )  # fmt: skip
 DATE_PRECISIONS = ("day", "month", "year", "missing")
 QC_STATUSES = ("pass", "warn")

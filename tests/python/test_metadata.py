@@ -108,3 +108,20 @@ def test_clean_host_and_text():
     assert clean_text(" not provided ") == "not provided"
     assert clean_text("  ") is None
     assert clean_text(None) is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "host", "expected"),
+    [
+        ("pig feces", "Sus scrofa", "animal"),
+        ("faeces", "Bos taurus", "animal"),
+        ("not provided", "Canis lupus familiaris", "animal"),
+        ("farm wastewater", "Sus scrofa", "environmental"),
+        ("rectal swab", "Homo sapiens", "screening"),
+        ("rectal swab", "homo sapiens ", "screening"),
+        ("rectal swab", "not provided", "screening"),
+        ("rectal swab", None, "screening"),
+    ],
+)
+def test_non_human_host_is_animal(raw, host, expected):
+    assert categorize_source(raw, host) == expected

@@ -124,3 +124,13 @@ def test_cli_export(tmp_path):
                  str(tmp_path / "s.tsv")]) == 0  # fmt: skip
     assert sorted(p.name for p in (tmp_path / "pq").iterdir()) == [
         "amr_genes.parquet", "run_summary.parquet", "samples.parquet"]  # fmt: skip
+
+
+def test_animal_host_category_reaches_samples_table(tmp_path):
+    sheet = tmp_path / "sheet.csv"
+    sheet.write_text(
+        "sample,fastq_1,fastq_2,sample_type,organism,isolation_source,host\n"
+        "S1,a_1.fastq.gz,a_2.fastq.gz,isolate,Klebsiella_pneumoniae,pig feces,Sus scrofa\n"
+    )
+    (row,) = run_export(tmp_path, sheet, ["S1"])["samples"].to_pylist()
+    assert row["source_category"] == "animal"

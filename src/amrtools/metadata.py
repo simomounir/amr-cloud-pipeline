@@ -94,14 +94,19 @@ def clean_country(raw: str | None) -> tuple[str | None, str | None]:
     return getattr(found, "common_name", None) or found.name, region
 
 
-def categorize_source(raw: str | None) -> str:
-    if is_missing(raw):
-        return "unknown"
-    text = raw.lower()
+def _is_human(host: str | None) -> bool:
+    return is_missing(host) or host.strip().lower() == "homo sapiens"
+
+
+def categorize_source(raw: str | None, host: str | None = None) -> str:
+    """Source category from free text; a non-human host makes it `animal` unless environmental."""
+    text = "" if is_missing(raw) else raw.lower()
     for category, pattern in _SOURCE_PATTERNS:
         if pattern.search(text):
+            if category != "environmental" and not _is_human(host):
+                return "animal"
             return category
-    return "unknown"
+    return "unknown" if _is_human(host) else "animal"
 
 
 def clean_host(raw: str | None) -> str | None:
