@@ -8,6 +8,7 @@ import pandas as pd
 
 from amrtools import __version__
 from amrtools.columns import GENE_COLUMNS, SUMMARY_COLUMNS
+from amrtools.dataset import build_dataset
 from amrtools.ena import SAMPLESHEET_COLUMNS, fetch_samples, http_get, write_csv
 from amrtools.errors import InputFormatError
 from amrtools.export import export_run
@@ -70,6 +71,10 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--run-started-at", required=True)
     export.add_argument("--outdir", type=Path, required=True)
     export.add_argument("--samples-tsv", type=Path)
+
+    build = commands.add_parser("build-dataset", help="combine run folders into one dataset")
+    build.add_argument("inputs", type=Path, nargs="+")
+    build.add_argument("--out", type=Path, required=True)
     return parser
 
 
@@ -157,6 +162,12 @@ def _run_export(args: argparse.Namespace) -> None:
     )
 
 
+def _run_build_dataset(args: argparse.Namespace) -> None:
+    manifest = build_dataset(args.inputs, args.out)
+    rows = ", ".join(f"{name} {entry['rows']}" for name, entry in manifest["tables"].items())
+    print(f"{args.out}: {len(manifest['runs'])} runs ({rows})", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if getattr(args, "outdir", None) is not None:
@@ -169,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         "fetch-samples": _run_fetch_samples,
         "validate": _run_validate,
         "export": _run_export,
+        "build-dataset": _run_build_dataset,
     }
     try:
         commands[args.command](args)
