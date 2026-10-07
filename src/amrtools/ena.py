@@ -1,6 +1,7 @@
 """Build samplesheets from ENA accessions (runs, samples or studies)."""
 
 import csv
+import http.client
 import io
 import time
 import urllib.error
@@ -39,10 +40,12 @@ def http_get(url, *, opener=urllib.request.urlopen, sleep=time.sleep, attempts=5
             with opener(url, timeout=60) as response:
                 return response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
-            if exc.code < 500:
+            # 4xx means a bad request (e.g. malformed accession), except 429 rate limiting.
+            if exc.code < 500 and exc.code != 429:
                 raise EnaError(f"ENA rejected request ({exc.code}): {url}") from exc
             error = exc
-        except (urllib.error.URLError, TimeoutError) as exc:
+        except (OSError, http.client.HTTPException) as exc:
+            # URLError, timeouts, resets and truncated responses are all worth a retry.
             error = exc
         if attempt < attempts:
             sleep(2**attempt)

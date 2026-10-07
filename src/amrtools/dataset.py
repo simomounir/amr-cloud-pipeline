@@ -17,30 +17,42 @@ from amrtools.validate import DatasetError, sha256, validate_dir
 MAX_FILE_BYTES = 95 * 1024 * 1024
 
 
-def _newest_run_per_sample(samples: pa.Table) -> dict[str, str]:
-    newest: dict[str, tuple] = {}
-    for row in samples.select(["sample", "run_id", "run_started_at"]).to_pylist():
-        current = newest.get(row["sample"])
-        if current is None or row["run_started_at"] > current[1]:
-            newest[row["sample"]] = (row["run_id"], row["run_started_at"])
-    return {sample: run_id for sample, (run_id, _) in newest.items()}
+def _select_newest(runs: list[dict[str, pa.Table]]) -> dict[str, pa.Table]:
+    """Keep each sample's rows from the input with the newest run; later inputs win ties.
 
-
-def _keep_winners(table: pa.Table, winners: dict[str, str]) -> pa.Table:
-    pairs = zip(table.column("sample").to_pylist(), table.column("run_id").to_pylist(), strict=True)
-    mask = [winners.get(sample) == run_id for sample, run_id in pairs]
-    kept = table.filter(pa.array(mask, type=pa.bool_()))
-    return kept.take(pc.sort_indices(kept, sort_keys=[("sample", "ascending")]))
+    Inputs are compared by position, not run_id: `nextflow -resume` reuses the session id,
+    so two batches can share a run_id.
+    """
+    best: dict[str, tuple] = {}
+    for index, run in enumerate(runs):
+        for row in run["samples"].select(["sample", "run_started_at"]).to_pylist():
+            key = (row["run_started_at"], index)
+            if row["sample"] not in best or key >= best[row["sample"]]:
+                best[row["sample"]] = key
+    selected = {}
+    for name in TABLES:
+        parts = []
+        for index, run in enumerate(runs):
+            samples = run[name].column("sample").to_pylist()
+            mask = [best[sample][1] == index for sample in samples]
+            parts.append(run[name].filter(pa.array(mask, type=pa.bool_())))
+        combined = pa.concat_tables(parts)
+        order = pc.sort_indices(combined, sort_keys=[("sample", "ascending")])
+        selected[name] = combined.take(order)
+    return selected
 
 
 def _manifest(directory: Path, tables: dict[str, pa.Table]) -> dict:
     samples = tables["samples"]
-    run_ids = samples.column("run_id").to_pylist()
-    started = dict(zip(run_ids, samples.column("run_started_at").to_pylist(), strict=True))
+    pairs = zip(
+        samples.column("run_id").to_pylist(),
+        samples.column("run_started_at").to_pylist(),
+        strict=True,
+    )
     runs = sorted(
         (
-            {"run_id": run_id, "run_started_at": started[run_id].isoformat(), "samples": count}
-            for run_id, count in Counter(run_ids).items()
+            {"run_id": run_id, "run_started_at": started.isoformat(), "samples": count}
+            for (run_id, started), count in Counter(pairs).items()
         ),
         key=lambda run: run["run_started_at"],
     )
@@ -61,14 +73,17 @@ def _manifest(directory: Path, tables: dict[str, pa.Table]) -> dict:
 
 def build_dataset(inputs: list[Path], out: Path) -> dict:
     out = Path(out)
+    backup = out.with_name(f".{out.name}.previous")
+    if backup.exists():
+        raise DatasetError(
+            f"{backup}: left over from an interrupted build; check it, then delete it "
+            f"or rename it back to {out.name}"
+        )
     if out.exists() and not (out / "manifest.json").exists():
         raise DatasetError(
             f"{out}: exists and is not a dataset (no manifest.json); not replacing it"
         )
-    runs = [validate_dir(Path(directory)) for directory in inputs]
-    combined = {name: pa.concat_tables([run[name] for run in runs]) for name in TABLES}
-    winners = _newest_run_per_sample(combined["samples"])
-    tables = {name: _keep_winners(table, winners) for name, table in combined.items()}
+    tables = _select_newest([validate_dir(Path(directory)) for directory in inputs])
 
     out.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{out.name}.", dir=out.parent))
@@ -83,10 +98,13 @@ def build_dataset(inputs: list[Path], out: Path) -> dict:
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         validate_dir(staging)
         if out.exists():
-            backup = out.with_name(f".{out.name}.previous")
             out.rename(backup)
-            staging.rename(out)
-            shutil.rmtree(backup)
+            try:
+                staging.rename(out)
+            except BaseException:
+                backup.rename(out)
+                raise
+            shutil.rmtree(backup, ignore_errors=True)
         else:
             staging.rename(out)
     except BaseException:

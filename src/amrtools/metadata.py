@@ -23,17 +23,19 @@ _COUNTRY_ALIASES = {
     "vietnam": "VN", "viet nam": "VN", "tanzania": "TZ", "moldova": "MD",
 }  # fmt: skip
 
-# First matching rule wins. Words match whole words; "bronch" is a prefix.
+# First matching rule wins. Words match whole words; "bronch" and "nasopharyn" are prefixes.
 _SOURCE_RULES = [
-    ("blood", ["blood", "bacteremia", "bacteraemia", "sepsis", "septicemia"]),
+    ("blood", ["blood", "bloodstream", "bacteremia", "bacteraemia", "sepsis", "septicemia",
+               r"ha?emocultures?"]),
     ("urine", ["urine", "urinary", "uti"]),
-    ("respiratory", ["sputum", r"bronch\w*", "bal", "tracheal", "respiratory", "pneumonia",
-                     "lung", "throat", "nasal"]),
+    ("respiratory", ["sputum", r"bronch\w*", "bal", "tracheal", "endotracheal", "respiratory",
+                     "pneumonia", "lung", "throat", "nasal", r"nasopharyn\w*"]),
     ("screening", ["rectal", "stool", "feces", "faeces", "fecal", "faecal", "perianal",
                    "perirectal", "gut", "colonization", "colonisation", "screening"]),
     ("wound", ["wound", "pus", "abscess", "skin", "tissue", "ulcer"]),
+    # "drain" alone is left out: clinical drains ("abdominal drain fluid") are common.
     ("environmental", ["water", "wastewater", "sewage", "soil", "environment", "sink",
-                       "drain", "surface"]),
+                       "surface"]),
     ("other_clinical", ["clinical", "hospital", "patient", "catheter", "cerebrospinal", "csf",
                         "swab", "aspirate", "fluid", "human"]),
 ]  # fmt: skip

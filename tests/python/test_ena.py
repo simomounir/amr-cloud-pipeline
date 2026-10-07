@@ -1,4 +1,5 @@
 import csv
+import http.client
 import io
 import urllib.error
 from pathlib import Path
@@ -157,3 +158,33 @@ def test_test_samplesheet_metadata_matches_ena():
         for column in ("sample_accession", "study_accession", "collection_date", "country",
                        "isolation_source", "host"):  # fmt: skip
             assert row[column] == expected[row["sample"]][column]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [http.client.RemoteDisconnected("closed"), ConnectionResetError("reset"),
+     http.client.IncompleteRead(b"", 10), TimeoutError("slow")],
+)  # fmt: skip
+def test_http_get_retries_dropped_connections(failure):
+    calls, sleeps = [], []
+
+    def opener(url, timeout):
+        calls.append(url)
+        if len(calls) == 1:
+            raise failure
+        return FakeResponse("ok")
+
+    assert http_get("https://x", opener=opener, sleep=sleeps.append) == "ok"
+    assert sleeps == [2]
+
+
+def test_http_get_retries_rate_limiting():
+    calls = []
+
+    def opener(url, timeout):
+        calls.append(url)
+        if len(calls) == 1:
+            raise http_error(429)
+        return FakeResponse("ok")
+
+    assert http_get("https://x", opener=opener, sleep=lambda s: None) == "ok"

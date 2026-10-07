@@ -43,8 +43,16 @@ Requirements: Docker, Java 17+, Nextflow ≥ 25.04, Python 3.12 (for `amrtools`)
 ```bash
 pip install .                                   # provides the amrtools command
 amrtools fetch-samples PRJNA376414 --organism Klebsiella_pneumoniae --out samples.csv
-nextflow run . -profile docker --input samples.csv --outdir results
-amrtools build-dataset results/parquet --out dataset
+nextflow run . -profile docker --input samples.csv --outdir results/batch1
+amrtools build-dataset results/batch1/parquet --out dataset
+```
+
+Give every run its own `--outdir`, and include the existing dataset when adding a batch,
+so earlier samples are kept (a sample present in both keeps its newest result):
+
+```bash
+nextflow run . -profile docker --input more.csv --outdir results/batch2
+amrtools build-dataset dataset results/batch2/parquet --out dataset
 ```
 
 `fetch-samples` accepts run, sample or study accessions, keeps Illumina paired-end
