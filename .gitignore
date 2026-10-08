@@ -33,3 +33,10 @@ credentials
 
 # Per-platform container configs that nf-core tools writes on module install; unused here
 conf/containers_*.config
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/*/backend.hcl
