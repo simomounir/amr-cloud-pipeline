@@ -126,3 +126,20 @@ run "deployer_is_fenced_in" {
     error_message = "Deployer must be explicitly denied removing or changing boundaries."
   }
 }
+
+run "deployer_can_build_inside_project_vpc_only" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for a in ["ec2:CreateSubnet", "ec2:CreateRouteTable", "ec2:CreateSecurityGroup"] : contains(
+        jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "Ec2CreateInProjectVpc")].Action, a
+      )
+    ])
+    error_message = "Creating subnets, route tables and security groups needs permission on the VPC too."
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "Ec2CreateInProjectVpc")].Condition.StringEquals["aws:ResourceTag/Project"] == "amr-cloud-pipeline"
+    error_message = "...but only inside the project's tagged VPC."
+  }
+}

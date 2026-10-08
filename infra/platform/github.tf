@@ -85,6 +85,15 @@ resource "aws_iam_role_policy" "deployer" {
         Condition = { StringEquals = { "aws:RequestTag/Project" = local.project } }
       },
       {
+        # Creating a subnet, route table or security group is also authorised against the VPC
+        # it goes into; allow that only for the project's (tagged) VPC.
+        Sid       = "Ec2CreateInProjectVpc"
+        Effect    = "Allow"
+        Action    = ["ec2:CreateSubnet", "ec2:CreateRouteTable", "ec2:CreateSecurityGroup"]
+        Resource  = "arn:aws:ec2:${var.region}:${local.account_id}:vpc/*"
+        Condition = { StringEquals = { "aws:ResourceTag/Project" = local.project } }
+      },
+      {
         Sid       = "Ec2TagOnCreate"
         Effect    = "Allow"
         Action    = ["ec2:CreateTags"]
