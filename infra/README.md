@@ -20,8 +20,9 @@ and GitHub can always assume the runner role to start the next run.
   and container registries; the security group allows no inbound traffic.
 - **Batch** is spot only (`SPOT_PRICE_CAPACITY_OPTIMIZED`), x86 families c6i/c6a/c7i/m6i/m6a,
   min 0 vCPU (nothing runs at idle), max `var.max_vcpus` (default 32) as a burn-rate cap.
-  Hosts use the ECS Amazon Linux 2023 image with a 100 GB disk and the AWS CLI installed at
-  boot in `/opt/aws-cli` (Nextflow stages files with it). Instance metadata is limited to
+  Hosts use the ECS Amazon Linux 2023 image with a 100 GB disk and a self-contained AWS CLI
+  (Miniforge + conda `awscli`) installed at boot in `/opt/aws-cli`. Nextflow mounts it into every
+  task container to stage files; the official AWS CLI build fails in minimal images (no `libz`). Instance metadata is limited to
   the host (hop limit 1), so containers only see their own job role.
 - **S3** (platform): `work/<study>/<run>/` expires after 7 days; `results/<study>/<run>/` is
   kept. `prevent_destroy` and `force_destroy = false` keep results from being deleted by accident.
