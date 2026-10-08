@@ -27,10 +27,36 @@
             "type": "string",
             "description": "Container image for amrtools"
         },
-        "qc_min_assembly_length": {"type": "integer", "minimum": 0},
-        "qc_max_assembly_length": {"type": "integer", "minimum": 0},
-        "qc_max_contigs": {"type": "integer", "minimum": 1},
-        "qc_min_q30": {"type": "number", "minimum": 0, "maximum": 1}
+        "qc_min_assembly_length": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "qc_max_assembly_length": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "qc_max_contigs": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "qc_min_q30": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "study": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Study name, used for S3 prefixes and cost tags"
+        },
+        "run_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "description": "Run identifier, used for S3 prefixes and cost tags"
+        }
     },
-    "required": ["input", "outdir"]
+    "required": [
+        "input",
+        "outdir"
+    ]
 }
