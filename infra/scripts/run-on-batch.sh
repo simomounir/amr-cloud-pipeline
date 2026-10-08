@@ -47,13 +47,15 @@ cleanup() {
     local status=$? rc=0
     trap - EXIT
     [ -n "${nf_config:-}" ] && rm -f "$nf_config"
+    log "destroy compute"
+    "$TF" -chdir="$infra/compute" destroy -auto-approve -input=false || rc=$?
     if [ "$compute_applied" = 1 ]; then
-        log "cost report (before destroy, while instance records are visible)"
+        # After destroy every instance has a termination time, so each is priced for exactly
+        # how long it ran (terminated instances stay visible for about an hour).
+        log "cost report"
         python3 "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
             --samples "$samples" --json "$local_dir/cost.json" || echo "cost report failed (see Cost Explorer tomorrow)"
     fi
-    log "destroy compute"
-    "$TF" -chdir="$infra/compute" destroy -auto-approve -input=false || rc=$?
     log "leftover check"
     left=$(
         aws ec2 describe-instances --region "$region" \

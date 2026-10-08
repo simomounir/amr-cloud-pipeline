@@ -73,6 +73,33 @@ One small spot instance for about 4 minutes: well under $0.01 (billing data appe
 `destroy` leaves only the deregistered (`INACTIVE`) job definition `amr-smoke`, which AWS Batch
 cannot delete and which costs nothing.
 
+## Running the pipeline on Batch
+
+```bash
+AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <samplesheet.csv> [--profile test]
+```
+
+Applies `compute`, makes sure the AMRFinderPlus database is in `s3://<bucket>/refs/` (built and
+uploaded once), runs Nextflow on this machine with every task on Batch spot, copies the results
+to `runs/<study>/<run>/` and validates them, destroys `compute`, then prices the run's instances
+(`cost.json`). Results stay in `s3://<bucket>/results/<study>/<run>/`.
+
+Nextflow runs as `amr-pipeline-runner`. A role assumed from an `aws login` session counts as role
+chaining (1-hour cap), so the script gives Nextflow a temporary AWS config whose
+`credential_process` refreshes the runner credentials as needed; `~/.aws/config` is not changed.
+Batch jobs use the `amr-batch-job` role (`aws.batch.jobRole`, generated per run because the ARN
+contains the account ID).
+
+### Measured: 3 test isolates (2026-10-08)
+
+| | |
+|---|---|
+| Tasks | 17 (fastp, Shovill, AMRFinderPlus, Kleborate, amrtools) |
+| Wall time | 15 min |
+| Instances | 4 × c6a/c7i.xlarge spot, 0.57 instance-hours |
+| **Cost** | **$0.063 total, $0.021 per genome** (spot compute, disk, public IPv4) |
+| Biology | ST13/KPC-2, ST147/NDM, ST23/none: identical to local and CI runs |
+
 ## Checks (CI, no AWS credentials)
 
 `terraform fmt`, `validate` (all roots), `terraform test` (plan tests with a mocked

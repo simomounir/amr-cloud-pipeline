@@ -3,8 +3,9 @@
 
 Prices each instance (tag Project=amr-cloud-pipeline, launched since --since) with the spot
 price in effect at launch, plus its 100 GB gp3 disk and public IPv4 address, and divides by
-the number of samples. Run it before the compute environment is destroyed (terminated
-instances stay visible for about an hour). Cost Explorer has the billed figure a day later.
+the number of samples. Run it right after the compute environment is destroyed: terminated
+instances stay visible for about an hour and then carry their exact termination time. Cost
+Explorer has the billed figure a day later.
 
 Usage: cost_report.py --region eu-west-1 --since 2026-10-08T18:00:00Z --samples 3 [--json out.json]
 """
