@@ -1,9 +1,9 @@
 WITH shown AS (SELECT sample FROM isolates {{where}}),
 hits AS (
-    SELECT g.gene_symbol, coalesce(g.drug_class, 'unknown') AS drug_class, count(DISTINCT g.sample) AS carriers
-    FROM amr_genes g
+    SELECT e.gene_symbol, coalesce(e.drug_class, 'unknown') AS drug_class, count(DISTINCT e.sample) AS carriers
+    FROM amr_elements e
     JOIN shown USING (sample)
-    WHERE g.element_type = 'AMR'
+    WHERE TRUE {{intrinsic}}
     GROUP BY ALL
 )
 SELECT

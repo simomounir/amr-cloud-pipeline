@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Connection } from "../src/data/connection";
 import { EMPTY_FILTERS } from "../src/data/filters";
-import { headline, heatmap, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
+import { headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
 import { createViews } from "../src/data/views";
 import { fixtureConnection } from "./nodeConnection";
 
@@ -61,9 +61,9 @@ describe("timeline", () => {
   });
 });
 
-describe("heatmap", () => {
+describe("top acquired elements", () => {
   it("ranks AMR elements by carriers with share of shown isolates", async () => {
-    const rows = await heatmap(conn, EMPTY_FILTERS);
+    const rows = await topElements(conn, EMPTY_FILTERS);
     expect(rows[0]).toEqual({ gene_symbol: "blaCTX-M-15", drug_class: "BETA-LACTAM", carriers: 2, share: 0.4 });
     expect(rows.map((r) => r.gene_symbol)).toContain("ompK36_D135DGD");
     expect(rows.map((r) => r.gene_symbol)).not.toContain("iutA");
@@ -71,7 +71,16 @@ describe("heatmap", () => {
   });
 
   it("is empty, not an error, when nothing matches", async () => {
-    expect(await heatmap(conn, { ...EMPTY_FILTERS, countries: ["Atlantis"] })).toEqual([]);
+    expect(await topElements(conn, { ...EMPTY_FILTERS, countries: ["Atlantis"] })).toEqual([]);
+  });
+
+  it("leaves out intrinsic chromosomal genes unless asked", async () => {
+    const acquired = (await topElements(conn, EMPTY_FILTERS)).map((r) => r.gene_symbol);
+    expect(acquired).not.toContain("fosA");
+    expect(acquired).not.toContain("blaSHV-11");
+    const all = await topElements(conn, EMPTY_FILTERS, true);
+    expect(all[0]).toEqual({ gene_symbol: "fosA", drug_class: "FOSFOMYCIN", carriers: 4, share: 0.8 });
+    expect(all.map((r) => r.gene_symbol)).toContain("blaSHV-11");
   });
 });
 

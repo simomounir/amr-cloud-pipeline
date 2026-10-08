@@ -10,7 +10,7 @@ export interface PanelState<T> {
 export interface DashboardData {
   headline: PanelState<q.Headline>;
   timeline: PanelState<q.TimelineRow[]>;
-  heatmap: PanelState<q.HeatmapRow[]>;
+  elements: PanelState<q.ElementRow[]>;
   isolates: PanelState<q.IsolateRow[]>;
   countries: PanelState<q.OptionRow[]>;
   sources: PanelState<q.OptionRow[]>;
@@ -27,6 +27,7 @@ async function settle<T>(promise: Promise<T>): Promise<PanelState<T>> {
 
 export function useDashboard(conn: Connection | undefined) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [includeIntrinsic, setIncludeIntrinsic] = useState(false);
   const [data, setData] = useState<DashboardData | undefined>();
   const [years, setYears] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
 
@@ -38,22 +39,22 @@ export function useDashboard(conn: Connection | undefined) {
     if (!conn) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const [headline, timeline, heatmap, isolates, countries, sources, sts] = await Promise.all([
+      const [headline, timeline, elements, isolates, countries, sources, sts] = await Promise.all([
         settle(q.headline(conn, filters)),
         settle(q.timeline(conn, filters)),
-        settle(q.heatmap(conn, filters)),
+        settle(q.topElements(conn, filters, includeIntrinsic)),
         settle(q.isolateRows(conn, filters)),
         settle(q.options(conn, filters, "countries")),
         settle(q.options(conn, filters, "sources")),
         settle(q.options(conn, filters, "sts")),
       ]);
-      if (!cancelled) setData({ headline, timeline, heatmap, isolates, countries, sources, sts });
+      if (!cancelled) setData({ headline, timeline, elements, isolates, countries, sources, sts });
     }, 150);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [conn, filters]);
+  }, [conn, filters, includeIntrinsic]);
 
-  return { filters, setFilters, data, years };
+  return { filters, setFilters, includeIntrinsic, setIncludeIntrinsic, data, years };
 }
