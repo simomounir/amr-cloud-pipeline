@@ -53,15 +53,16 @@ AWS CLI, waits for Batch to scale back to 0, destroys `compute`, and asks each s
 anything is left. Compute is destroyed even if a step fails; a failed check is reported, never
 silently passed.
 
-### Measured (2026-10-08, eu-west-1)
+### Measured (2026-10-08, eu-west-1, final three-root layout)
 
 | Step | Time |
 |---|---|
-| `terraform apply` (29 resources) | 1 min 20 s |
-| Job queued → spot instance up → job done | 4 min (3.7 min is instance start + AWS CLI install) |
-| Scale back to 0 vCPU after the job | 2 min |
-| `terraform destroy` (29 resources) | 2.5 min |
-| **Total** | **11 min** |
+| `platform` apply (already up to date) | 8 s |
+| `compute` apply (21 resources) | 1 min |
+| Job submitted as `amr-pipeline-runner` → spot instance up → job done | 2.7 min |
+| Scale back to 0 vCPU after the job | 1 min |
+| `compute` destroy (21 resources) + leftover check | 3 min |
+| **Total** | **7 min** |
 
 AWS Batch creates its own empty default log group `/aws/batch/job` whenever a compute
 environment is created. It is not managed here (jobs log to `/amr/batch`), costs nothing, and
