@@ -1,0 +1,126 @@
+name: Cloud run
+
+# One-click run of a study on AWS Batch. Only workflows on main can assume the AWS roles
+# (OIDC trust in infra/platform), and only the repository owner can dispatch them.
+on:
+  workflow_dispatch:
+    inputs:
+      study:
+        description: "Study folder under studies/"
+        required: true
+        default: test
+      max_isolates:
+        description: "Optional lower cap on isolates (never above the study's max_isolates)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+# One cloud run at a time; a second dispatch waits instead of cancelling the first.
+concurrency:
+  group: cloud-run
+  cancel-in-progress: false
+
+env:
+  NXF_VER: "26.04.6"
+  AWS_REGION: eu-west-1
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: nf-core/setup-nextflow@893c28b667aedeba26e37f296d260ccc5bc4d914 # v3.0.1
+        with:
+          version: ${{ env.NXF_VER }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install amrtools
+        run: python -m venv .venv && .venv/bin/pip install -q .
+
+      - name: Read study settings
+        id: study
+        env:
+          STUDY: ${{ inputs.study }}
+          REQUESTED: ${{ inputs.max_isolates }}
+        run: |
+          [[ "$STUDY" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || { echo "::error::invalid study name"; exit 1; }
+          dir="studies/$STUDY"
+          test -f "$dir/study.yaml" -a -f "$dir/accessions.txt" || { echo "::error::$dir needs study.yaml and accessions.txt"; exit 1; }
+          organism=$(sed -n 's/^organism: *//p' "$dir/study.yaml")
+          cap=$(sed -n 's/^max_isolates: *//p' "$dir/study.yaml")
+          [[ "$cap" =~ ^[0-9]+$ ]] || { echo "::error::study.yaml needs max_isolates"; exit 1; }
+          max=$cap
+          if [ -n "$REQUESTED" ]; then
+            [[ "$REQUESTED" =~ ^[0-9]+$ ]] || { echo "::error::max_isolates must be a number"; exit 1; }
+            [ "$REQUESTED" -lt "$cap" ] && max=$REQUESTED
+          fi
+          echo "organism=$organism" >> "$GITHUB_OUTPUT"
+          echo "max=$max" >> "$GITHUB_OUTPUT"
+          echo "Study $STUDY: up to $max isolates of $organism" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Samplesheet from ENA
+        env:
+          STUDY: ${{ inputs.study }}
+        run: |
+          mkdir -p input
+          .venv/bin/amrtools fetch-samples --accession-file "studies/$STUDY/accessions.txt" \
+            --organism "${{ steps.study.outputs.organism }}" --out input/samples.csv
+
+      - name: AWS credentials (compute deployer)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          role-session-name: cloud-run-${{ github.run_id }}
+          role-duration-seconds: 21600
+          aws-region: ${{ env.AWS_REGION }}
+      - name: AWS credentials (pipeline runner)
+        id: runner
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_RUNNER_ROLE_ARN }}
+          role-session-name: nf-${{ github.run_id }}
+          role-duration-seconds: 21600
+          aws-region: ${{ env.AWS_REGION }}
+          output-credentials: true
+          output-env-credentials: false
+
+      - name: Run on AWS Batch
+        env:
+          RUNNER_AWS_ACCESS_KEY_ID: ${{ steps.runner.outputs.aws-access-key-id }}
+          RUNNER_AWS_SECRET_ACCESS_KEY: ${{ steps.runner.outputs.aws-secret-access-key }}
+          RUNNER_AWS_SESSION_TOKEN: ${{ steps.runner.outputs.aws-session-token }}
+          STUDY: ${{ inputs.study }}
+        run: |
+          infra/scripts/run-on-batch.sh --ci --study "$STUDY" --input input/samples.csv \
+            --max-samples "${{ steps.study.outputs.max }}"
+
+      - name: Upload run (dataset, report, cost)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloud-run-${{ inputs.study }}-${{ github.run_id }}
+          path: |
+            runs/
+            !runs/**/.nextflow*
+          if-no-files-found: warn
+
+      # Belt and braces: the run script destroys compute itself; this also covers a killed script.
+      - name: Make sure compute is destroyed
+        if: always()
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          terraform -chdir=infra/compute init -input=false -backend-config="bucket=amr-tfstate-$account" > /dev/null
+          terraform -chdir=infra/compute destroy -auto-approve -input=false

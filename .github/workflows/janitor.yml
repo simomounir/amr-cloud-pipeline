@@ -1,0 +1,49 @@
+name: Janitor
+
+# Daily safety net: if compute exists while no cloud run is active, a run died without its
+# cleanup. Destroy compute and open an issue.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  actions: read
+
+# Not in the cloud-run concurrency group: GitHub keeps one pending job per group, so a queued
+# janitor could displace a queued cloud run. The active-run check below covers the overlap.
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  janitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          role-session-name: janitor-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Destroy orphaned compute
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exists=$(aws batch describe-compute-environments --compute-environments amr-spot --query 'length(computeEnvironments)' --output text)
+          if [ "$exists" = "0" ]; then echo "No compute exists. Nothing to do."; exit 0; fi
+          active=$(gh run list --workflow "Cloud run" --json status -q '[.[] | select(.status != "completed")] | length')
+          if [ "$active" != "0" ]; then echo "A cloud run is active; leaving compute alone."; exit 0; fi
+          account=$(aws sts get-caller-identity --query Account --output text)
+          terraform -chdir=infra/compute init -input=false -backend-config="bucket=amr-tfstate-$account" > /dev/null
+          terraform -chdir=infra/compute destroy -auto-approve -input=false
+          gh issue create --title "Janitor destroyed orphaned AWS compute" \
+            --body "Compute existed with no active Cloud run (janitor run ${{ github.run_id }}). It has been destroyed. Check the most recent Cloud run for why its cleanup did not finish."
