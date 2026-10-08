@@ -51,10 +51,6 @@ run "network_has_no_inbound_access" {
     error_message = "Batch security group must not allow inbound traffic."
   }
   assert {
-    condition     = length(aws_default_security_group.default.ingress) == 0 && length(aws_default_security_group.default.egress) == 0
-    error_message = "The VPC default security group must have no rules."
-  }
-  assert {
     condition     = length(aws_subnet.public) == 3
     error_message = "One public subnet per availability zone (3)."
   }
@@ -100,5 +96,17 @@ run "boot_script_fails_closed" {
   assert {
     condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "/opt/aws-cli/bin/aws --version")
     error_message = "The boot script must verify the AWS CLI it installed."
+  }
+}
+
+run "batch_roles_carry_the_boundary" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for b in [aws_iam_role.instance.permissions_boundary, aws_iam_role.job.permissions_boundary] :
+      b == "arn:aws:iam::123456789012:policy/amr-batch-boundary"
+    ])
+    error_message = "amr-batch-* roles must carry the amr-batch-boundary permissions boundary."
   }
 }

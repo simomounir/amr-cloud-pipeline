@@ -32,6 +32,8 @@ locals {
   aws_cli_dir = "/opt/aws-cli"
   # The platform root's runner policy passes this role by its fixed name.
   job_role_name = "amr-batch-job"
+  # Created by infra/platform; every amr-batch-* role must carry it.
+  boundary_arn = "arn:aws:iam::${local.account_id}:policy/amr-batch-boundary"
   tags = {
     Project   = local.project
     ManagedBy = "terraform"

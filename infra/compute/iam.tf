@@ -32,8 +32,9 @@ locals {
 # EC2 hosts started by Batch: only join the ECS cluster. Containers cannot reach the host's
 # credentials (metadata hop limit 1); they use the job role, which has the S3 access.
 resource "aws_iam_role" "instance" {
-  name               = "amr-batch-instance"
-  assume_role_policy = local.ec2_trust
+  name                 = "amr-batch-instance"
+  assume_role_policy   = local.ec2_trust
+  permissions_boundary = local.boundary_arn
 }
 
 resource "aws_iam_role_policy_attachment" "instance_ecs" {
@@ -48,8 +49,9 @@ resource "aws_iam_instance_profile" "instance" {
 
 # Each job's container.
 resource "aws_iam_role" "job" {
-  name               = local.job_role_name
-  assume_role_policy = local.ecs_tasks_trust
+  name                 = local.job_role_name
+  assume_role_policy   = local.ecs_tasks_trust
+  permissions_boundary = local.boundary_arn
 }
 
 resource "aws_iam_role_policy" "job_s3" {

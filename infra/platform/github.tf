@@ -1,0 +1,223 @@
+# GitHub Actions → AWS without stored keys. AWS verifies GitHub's OIDC token; only workflows on
+# main of var.github_repository can assume the deployer (Terraform for compute/) or the runner
+# (Nextflow). Each role is assumed directly from the web identity, so sessions are not
+# "chained" and can last a whole run.
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+}
+
+# Ceiling for every amr-batch-* role the deployer creates. Whatever policies get attached, these
+# roles can never do more than run ECS tasks, write /amr/batch logs and use the project bucket.
+resource "aws_iam_policy" "batch_boundary" {
+  #checkov:skip=CKV_AWS_355:A permissions boundary is a ceiling, not a grant; ECS agent actions cannot be resource-scoped
+  #checkov:skip=CKV_AWS_290:Ceiling only; grants come from the roles' own policies, scoped in compute/
+  #checkov:skip=CKV_AWS_289:Ceiling only; see above
+  name        = "amr-batch-boundary"
+  description = "Permissions boundary for amr-batch-* roles (ECS agent, job logs, project bucket)"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EcsAgentAndImagePulls"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeTags", "ecs:CreateCluster", "ecs:DeregisterContainerInstance",
+          "ecs:DiscoverPollEndpoint", "ecs:Poll", "ecs:RegisterContainerInstance",
+          "ecs:StartTelemetrySession", "ecs:UpdateContainerInstancesState", "ecs:Submit*",
+          "ecs:TagResource", "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "JobLogs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "*"
+      },
+      {
+        Sid      = "ProjectBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"]
+        Resource = [local.bucket_arn, "${local.bucket_arn}/*"]
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role" "deployer" {
+  name        = "amr-compute-deployer"
+  description = "Applies and destroys infra/compute (GitHub Actions on main, or the account's admins)"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [local.account_trust_statement, local.github_trust_statement]
+  })
+  max_session_duration = 43200
+}
+
+resource "aws_iam_role_policy" "deployer" {
+  #checkov:skip=CKV_AWS_355:Describe/List calls and tag-conditioned EC2 actions cannot be resource-scoped by ARN
+  #checkov:skip=CKV_AWS_290:EC2 writes are fenced by Project tag conditions; IAM writes by name prefix and permissions boundary
+  #checkov:skip=CKV_AWS_289:Role creation is fenced by the amr-batch-boundary permissions boundary
+  #checkov:skip=CKV_AWS_286:Privilege escalation is blocked by the boundary condition and the explicit boundary-removal deny
+  name = "manage-compute"
+  role = aws_iam_role.deployer.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Ec2Read"
+        Effect   = "Allow"
+        Action   = ["ec2:Describe*"]
+        Resource = "*"
+      },
+      {
+        # New resources must be created with the project tag.
+        Sid    = "Ec2CreateTagged"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateVpc", "ec2:CreateSubnet", "ec2:CreateInternetGateway", "ec2:CreateRouteTable",
+          "ec2:CreateSecurityGroup", "ec2:CreateLaunchTemplate",
+        ]
+        Resource  = "*"
+        Condition = { StringEquals = { "aws:RequestTag/Project" = local.project } }
+      },
+      {
+        Sid       = "Ec2TagOnCreate"
+        Effect    = "Allow"
+        Action    = ["ec2:CreateTags"]
+        Resource  = "*"
+        Condition = { StringEquals = { "ec2:CreateAction" = ["CreateVpc", "CreateSubnet", "CreateInternetGateway", "CreateRouteTable", "CreateSecurityGroup", "CreateLaunchTemplate"] } }
+      },
+      {
+        # Existing resources can only be changed or deleted if they carry the project tag.
+        Sid    = "Ec2ManageTagged"
+        Effect = "Allow"
+        Action = [
+          "ec2:DeleteVpc", "ec2:ModifyVpcAttribute", "ec2:DeleteSubnet", "ec2:ModifySubnetAttribute",
+          "ec2:AttachInternetGateway", "ec2:DetachInternetGateway", "ec2:DeleteInternetGateway",
+          "ec2:CreateRoute", "ec2:ReplaceRoute", "ec2:DeleteRoute", "ec2:AssociateRouteTable",
+          "ec2:DisassociateRouteTable", "ec2:DeleteRouteTable", "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress", "ec2:DeleteSecurityGroup", "ec2:CreateLaunchTemplateVersion",
+          "ec2:ModifyLaunchTemplate", "ec2:DeleteLaunchTemplate", "ec2:CreateTags", "ec2:DeleteTags",
+        ]
+        Resource  = "*"
+        Condition = { StringEquals = { "aws:ResourceTag/Project" = local.project } }
+      },
+      {
+        Sid    = "BatchManageProject"
+        Effect = "Allow"
+        Action = [
+          "batch:CreateComputeEnvironment", "batch:UpdateComputeEnvironment", "batch:DeleteComputeEnvironment",
+          "batch:CreateJobQueue", "batch:UpdateJobQueue", "batch:DeleteJobQueue",
+          "batch:RegisterJobDefinition", "batch:DeregisterJobDefinition", "batch:TagResource", "batch:UntagResource",
+        ]
+        Resource = [
+          "arn:aws:batch:${var.region}:${local.account_id}:compute-environment/amr-*",
+          "arn:aws:batch:${var.region}:${local.account_id}:job-queue/amr-*",
+          "arn:aws:batch:${var.region}:${local.account_id}:job-definition/amr-*",
+        ]
+      },
+      {
+        Sid      = "BatchRead"
+        Effect   = "Allow"
+        Action   = ["batch:DescribeComputeEnvironments", "batch:DescribeJobQueues", "batch:DescribeJobDefinitions", "batch:ListTagsForResource", "batch:ListJobs"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ProjectLogGroup"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy",
+          "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource", "logs:TagLogGroup",
+        ]
+        Resource = ["arn:aws:logs:${var.region}:${local.account_id}:log-group:/amr/batch", "arn:aws:logs:${var.region}:${local.account_id}:log-group:/amr/batch:*"]
+      },
+      {
+        Sid      = "LogsRead"
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
+      },
+      {
+        Sid       = "CreateBatchRolesWithBoundary"
+        Effect    = "Allow"
+        Action    = ["iam:CreateRole"]
+        Resource  = local.batch_roles
+        Condition = { StringEquals = { "iam:PermissionsBoundary" = local.boundary_arn } }
+      },
+      {
+        Sid       = "WriteBatchRolePoliciesWithBoundary"
+        Effect    = "Allow"
+        Action    = ["iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:DetachRolePolicy"]
+        Resource  = local.batch_roles
+        Condition = { StringEquals = { "iam:PermissionsBoundary" = local.boundary_arn } }
+      },
+      {
+        Sid      = "AttachOnlyEcsPolicy"
+        Effect   = "Allow"
+        Action   = ["iam:AttachRolePolicy"]
+        Resource = local.batch_roles
+        Condition = {
+          ArnEquals    = { "iam:PolicyARN" = local.ecs_policy_arn }
+          StringEquals = { "iam:PermissionsBoundary" = local.boundary_arn }
+        }
+      },
+      {
+        Sid    = "ManageBatchRoles"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole", "iam:DeleteRole", "iam:TagRole", "iam:UntagRole", "iam:GetRolePolicy",
+          "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole",
+        ]
+        Resource = local.batch_roles
+      },
+      {
+        Sid    = "ManageBatchInstanceProfiles"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:GetInstanceProfile",
+          "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
+        ]
+        Resource = [local.batch_profiles, local.batch_roles]
+      },
+      {
+        Sid      = "PassBatchRoles"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = local.batch_roles
+      },
+      {
+        Sid    = "NeverRemoveBoundary"
+        Effect = "Deny"
+        Action = [
+          "iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary",
+          "iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:SetDefaultPolicyVersion",
+        ]
+        Resource = [local.batch_roles, local.boundary_arn]
+      },
+      {
+        Sid      = "ComputeState"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "arn:aws:s3:::${local.state_bucket}/compute/*"
+      },
+      {
+        Sid      = "ReadPlatformState"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "arn:aws:s3:::${local.state_bucket}/platform/*"
+      },
+      {
+        Sid      = "ListStateBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = "arn:aws:s3:::${local.state_bucket}"
+      },
+    ]
+  })
+}
