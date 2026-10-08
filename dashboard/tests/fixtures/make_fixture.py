@@ -23,11 +23,25 @@ ISOLATES = {
 }
 CARB, CEPH = "CARBAPENEM", "CEPHALOSPORIN"
 GENES = {
-    "F1": [("blaKPC-2", CARB, "AMR", "AMR"), ("blaCTX-M-15", CEPH, "AMR", "AMR")],
-    "F2": [("blaNDM-5", CARB, "AMR", "AMR"), ("blaCTX-M-15", CEPH, "AMR", "AMR")],
-    "F3": [("blaNDM-1", CARB, "AMR", "AMR"), ("blaOXA-232", CARB, "AMR", "AMR")],
+    "F1": [
+        ("blaKPC-2", CARB, "AMR", "AMR"),
+        ("blaCTX-M-15", CEPH, "AMR", "AMR"),
+        ("fosA", "FOSFOMYCIN", "AMR", "AMR"),
+    ],
+    "F2": [
+        ("blaNDM-5", CARB, "AMR", "AMR"),
+        ("blaCTX-M-15", CEPH, "AMR", "AMR"),
+        ("fosA", "FOSFOMYCIN", "AMR", "AMR"),
+        ("blaSHV-11", "BETA-LACTAM", "AMR", "AMR"),
+    ],
+    "F3": [
+        ("blaNDM-1", CARB, "AMR", "AMR"),
+        ("blaOXA-232", CARB, "AMR", "AMR"),
+        ("fosA", "FOSFOMYCIN", "AMR", "AMR"),
+    ],
     "F4": [
         ("blaCTX-M-14", CEPH, "AMR", "AMR"),
+        ("fosA", "FOSFOMYCIN", "AMR", "AMR"),
         ("ompK36_D135DGD", CARB, "AMR", "POINT"),
         ("iutA", None, "VIRULENCE", "VIRULENCE"),
     ],
@@ -67,7 +81,13 @@ def main() -> None:
                     element_name=symbol,
                     element_type=element_type,
                     element_subtype=subtype,
-                    drug_class="BETA-LACTAM" if subclass else None,
+                    drug_class=(
+                        "FOSFOMYCIN"
+                        if subclass == "FOSFOMYCIN"
+                        else "BETA-LACTAM"
+                        if subclass
+                        else None
+                    ),
                     drug_subclass=subclass,
                 )
             )

@@ -34,3 +34,18 @@ SELECT
     EXISTS (SELECT 1 FROM esbl e WHERE e.sample = s.sample) AS has_ctxm
 FROM samples s
 JOIN run_summary r USING (sample);
+
+-- AMR elements with a flag for genes every K. pneumoniae carries on its chromosome
+-- (fosA, oqxAB, emrD, kpnEFGH efflux, chromosomal SHV alleles). Acquired fosA3 and ESBL SHVs
+-- (e.g. SHV-12) are not flagged. Point mutations count as acquired resistance.
+CREATE OR REPLACE VIEW amr_elements AS
+SELECT
+    g.*,
+    (
+        g.gene_symbol IN ('emrD', 'fosA', 'blaSHV', 'blaSHV-1', 'blaSHV-11', 'blaSHV-26', 'blaSHV-27', 'blaSHV-28', 'blaSHV-187')
+        OR g.gene_symbol LIKE 'oqxA%'
+        OR g.gene_symbol LIKE 'oqxB%'
+        OR regexp_matches(g.gene_symbol, '^kpn[EFGH]')
+    ) AS is_intrinsic
+FROM amr_genes g
+WHERE g.element_type = 'AMR';

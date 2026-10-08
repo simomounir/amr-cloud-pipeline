@@ -26,6 +26,8 @@ main { display: grid; gap: 20px; min-width: 0; }
 .panel h2 { margin: 0 0 12px; font-size: 1.1rem; }
 .panel-error { color: #a61b1b; }
 .panel-empty { color: var(--muted); }
+.panel .note { margin: 12px 0 0; color: var(--muted); font-size: 0.85rem; }
+.panel-option { display: inline-block; margin-bottom: 8px; font-size: 0.9rem; }
 .headline { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0; }
 .headline dt { color: var(--muted); font-size: 0.85rem; }
 .headline dd { margin: 0; font-size: 1.6rem; font-weight: 600; }

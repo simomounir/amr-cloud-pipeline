@@ -5,7 +5,7 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   await page.goto("./");
   const isolates = page.getByTestId("headline-isolates");
   await expect(isolates).toHaveText("5");
-  for (const panel of ["Resistance over time", "Most common AMR elements", "Isolates"]) {
+  for (const panel of ["Resistance over time", "Most common acquired AMR elements", "Isolates"]) {
     await expect(page.getByRole("heading", { name: panel, exact: true })).toBeVisible();
   }
   await expect(page.locator("figure svg").first()).toBeVisible();
@@ -41,4 +41,14 @@ test("a ticked filter stays visible when its count drops to zero", async ({ page
   await us.click();
   await expect(isolates).toHaveText("3");
   await expect(page.getByRole("checkbox", { name: /United States/ })).toHaveCount(0);
+});
+
+test("intrinsic genes are hidden by default and can be shown", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByTestId("headline-isolates")).toHaveText("5");
+  await expect(page.getByText(/over-represent resistant, outbreak-associated isolates/)).toBeVisible();
+  const chart = page.locator("section", { has: page.getByRole("heading", { name: "Most common acquired AMR elements" }) });
+  await expect(chart.locator("svg").getByText("fosA", { exact: true })).toHaveCount(0);
+  await page.getByRole("checkbox", { name: "Include intrinsic genes" }).check();
+  await expect(chart.locator("svg").getByText("fosA", { exact: true })).toHaveCount(1);
 });

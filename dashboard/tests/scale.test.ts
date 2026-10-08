@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { EMPTY_FILTERS } from "../src/data/filters";
-import { headline, heatmap, isolateRows, options, timeline } from "../src/data/queries";
+import { headline, topElements, isolateRows, options, timeline } from "../src/data/queries";
 import { createViews } from "../src/data/views";
 import { emptyConnection } from "./nodeConnection";
 
@@ -23,7 +23,7 @@ it("every panel query finishes within a second at 10,000 isolates", async () => 
            CASE WHEN i % 9 = 0 THEN 'CARBAPENEM' ELSE 'CEPHALOSPORIN' END AS drug_subclass
     FROM range(440000) t(i)`);
   await createViews(conn);
-  for (const query of [headline, timeline, heatmap, isolateRows]) {
+  for (const query of [headline, timeline, topElements, isolateRows]) {
     const start = performance.now();
     await query(conn, EMPTY_FILTERS);
     expect(performance.now() - start).toBeLessThan(1000);

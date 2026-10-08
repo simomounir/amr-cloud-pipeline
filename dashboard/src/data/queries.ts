@@ -1,7 +1,7 @@
 import type { Connection } from "./connection";
 import { type Filters, type ListFilter, toWhere } from "./filters";
 import headlineSql from "./sql/headline.sql?raw";
-import heatmapSql from "./sql/heatmap.sql?raw";
+import topElementsSql from "./sql/top_elements.sql?raw";
 import isolatesSql from "./sql/isolates.sql?raw";
 import optionsSql from "./sql/options.sql?raw";
 import timelineSql from "./sql/timeline.sql?raw";
@@ -21,7 +21,7 @@ export interface TimelineRow {
   family: string;
   isolates: number;
 }
-export interface HeatmapRow {
+export interface ElementRow {
   gene_symbol: string;
   drug_class: string;
   carriers: number;
@@ -64,8 +64,9 @@ export function timeline(conn: Connection, filters: Filters): Promise<TimelineRo
   return run<TimelineRow>(conn, timelineSql, filters);
 }
 
-export function heatmap(conn: Connection, filters: Filters): Promise<HeatmapRow[]> {
-  return run<HeatmapRow>(conn, heatmapSql, filters);
+export function topElements(conn: Connection, filters: Filters, includeIntrinsic = false): Promise<ElementRow[]> {
+  const template = topElementsSql.replace("{{intrinsic}}", includeIntrinsic ? "" : "AND NOT e.is_intrinsic");
+  return run<ElementRow>(conn, template, filters);
 }
 
 export function isolateRows(conn: Connection, filters: Filters): Promise<IsolateRow[]> {
