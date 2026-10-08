@@ -46,6 +46,7 @@ compute_applied=0
 cleanup() {
     local status=$? rc=0
     trap - EXIT
+    [ -n "${nf_config:-}" ] && rm -f "$nf_config"
     if [ "$compute_applied" = 1 ]; then
         log "cost report (before destroy, while instance records are visible)"
         python3 "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
