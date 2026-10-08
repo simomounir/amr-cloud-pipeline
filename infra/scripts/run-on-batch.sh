@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Run the pipeline on AWS Batch for one study:
 #   apply infra/compute → ensure the AMRFinderPlus DB is in S3 → Nextflow (head on this machine,
-#   tasks on Batch spot, credentials = the amr-pipeline-runner role) → copy results back and
+#   tasks on Batch spot, credentials = the amr-pipeline-runner role, refreshed automatically) →
+#   copy results back and
 #   validate → cost report → destroy compute. Compute is destroyed on exit even if a step fails.
 #
 # Usage: AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <samplesheet.csv> [--profile test]
@@ -93,21 +94,35 @@ fi
 echo "using refs/$db"
 
 log "nextflow on Batch as $runner (study=$study run=$run_id samples=$samples)"
-creds=$(aws sts assume-role --role-arn "$runner" --role-session-name "nf-$study" --duration-seconds 43200 \
-    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)
-read -r rk rs rt <<< "$creds"
-unset creds
+# A role assumed from an `aws login` session is "role chaining", capped at 1 hour. Instead of
+# fixed keys, give Nextflow a profile whose credential_process asks the AWS CLI for fresh
+# runner-role credentials whenever they near expiry. Written to a temporary config file so
+# ~/.aws/config is never modified.
+nf_config=$(mktemp)
+cat "${AWS_CONFIG_FILE:-$HOME/.aws/config}" > "$nf_config"
+cat >> "$nf_config" <<CFG
+
+[profile amr-runner]
+role_arn = $runner
+source_profile = $AWS_PROFILE
+role_session_name = nf-$study
+region = $region
+
+[profile amr-runner-process]
+credential_process = aws configure export-credentials --profile amr-runner --format process
+region = $region
+CFG
 (
     cd "$local_dir"
-    env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$rk" AWS_SECRET_ACCESS_KEY="$rs" AWS_SESSION_TOKEN="$rt" \
-        AWS_REGION="$region" caffeinate -i "$NXF" run "$root" -profile "awsbatch$extra_profile" \
+    AWS_CONFIG_FILE="$nf_config" AWS_PROFILE=amr-runner-process AWS_REGION="$region" \
+        caffeinate -i "$NXF" run "$root" -profile "awsbatch$extra_profile" \
         --input "$input" --study "$study" --run_id "$run_id" \
         --amrfinder_db "s3://$bucket/refs/$db" \
         --outdir "s3://$bucket/results/$study/$run_id" \
         -work-dir "s3://$bucket/work/$study/$run_id" \
         -with-trace trace.tsv -with-report report.html -ansi-log false
 )
-unset rk rs rt
+rm -f "$nf_config"
 
 log "copy results and validate"
 aws s3 cp "s3://$bucket/results/$study/$run_id/" "$local_dir/results/" --recursive --quiet
