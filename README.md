@@ -85,6 +85,8 @@ Desktop at least 8 GB of memory and expect slow assemblies.
 The same pipeline runs on AWS Batch spot instances, set up with Terraform in [infra/](infra/):
 long-lived storage and identity, short-lived compute that is destroyed after every run (about $0
 while idle). First measured run: **$0.021 per genome**, identical results to local and CI.
+Studies (a question plus a list of ENA accessions, in [studies/](studies/)) run on AWS from the
+GitHub Actions page with one click, using OIDC (no stored AWS keys).
 
 ## Dashboard
 
@@ -113,7 +115,7 @@ Test data: see [tests/data/README.md](tests/data/README.md).
 1. Phase 1: local pipeline, tests, CI
 2. Phase 2: versioned Parquet results schema, ENA metadata
 3. **Phase 3:** static dashboard (DuckDB-WASM on GitHub Pages)
-4. **Phase 4:** AWS Batch with Terraform (4a–4c done: account, infrastructure, first cloud run at $0.021/genome)
+4. **Phase 4:** AWS Batch with Terraform (4a–4d done: account, infrastructure, first cloud run at $0.021/genome, one-click runs from GitHub)
 5. Phase 6: metagenome mode on the same platform
 
 Project brief: [docs/amr-cloud-pipeline-project.md](docs/amr-cloud-pipeline-project.md).

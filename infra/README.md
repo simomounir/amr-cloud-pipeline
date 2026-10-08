@@ -6,7 +6,7 @@ identity, short-lived compute. Between runs only storage costs anything (pennies
 | Root | What | Lifetime |
 |---|---|---|
 | `bootstrap/` | S3 bucket `amr-tfstate-<account>` holding the other roots' state (versioned, encrypted, private) | created once, never destroyed |
-| `platform/` | S3 bucket `amr-pipeline-<account>` with its protections and lifecycle; IAM role `amr-pipeline-runner` (GitHub OIDC joins in 4d) | stays up between runs |
+| `platform/` | S3 bucket `amr-pipeline-<account>` with its protections and lifecycle; IAM roles `amr-pipeline-runner` and `amr-compute-deployer`, GitHub OIDC provider, permissions boundary `amr-batch-boundary` | stays up between runs |
 | `compute/` | VPC (public subnets, no NAT), AWS Batch spot compute (0–32 vCPU), job queue, instance and job roles, log group, smoke job | apply → run → destroy |
 
 Budgets (`zero-spend`, `monthly-cap-25`) live outside Terraform so nothing here can remove them.
@@ -29,6 +29,11 @@ and GitHub can always assume the runner role to start the next run.
 - **IAM**, each scoped to this bucket and queue: instance role (ECS only; no S3), job role
   (bucket read/write), Batch service-linked role, and `amr-pipeline-runner` in platform (submits
   jobs, passes only the job role, reads/writes the bucket).
+- **Deployer** (`amr-compute-deployer`, platform): the identity that applies and destroys
+  `compute/`. It can only touch resources tagged `Project=amr-cloud-pipeline`, Batch resources
+  named `amr-*` and the `/amr/batch` log group. It may create IAM roles named `amr-batch-*` only
+  with the permissions boundary `amr-batch-boundary` attached (and can never remove it), so the
+  roles it creates can never exceed the boundary's permissions: ECS agent, project logs, project bucket.
 - **Boot script fails closed**: if installing the AWS CLI fails, the host shuts down and Batch
   replaces it, instead of every job on it failing.
 
@@ -102,6 +107,28 @@ contains the account ID).
 
 At n=3 most of this is fixed overhead (instance boot and the AWS CLI install); expect the cost per
 genome to change at study scale. It is re-measured for every run (`runs/<study>/<run>/cost.json`).
+
+## Cloud runs from GitHub (OIDC)
+
+**Actions → Cloud run → Run workflow**, enter a study folder name (see [studies/](../studies/)).
+GitHub proves its identity to AWS with a short-lived OIDC token; no AWS keys are stored in
+GitHub. Both roles trust only workflows running on `main` of this repository, so forks, pull
+requests and other branches cannot assume them. The workflow takes the deployer for Terraform
+and the runner for Nextflow, then calls `run-on-batch.sh --ci`. The results, report and cost
+are uploaded as a workflow artifact, and a final step destroys compute even if the run failed.
+
+Repository variables (role ARNs, not secrets): `AWS_DEPLOYER_ROLE_ARN`, `AWS_RUNNER_ROLE_ARN`
+(`terraform -chdir=infra/platform output`).
+
+Safety nets: one cloud run at a time (`concurrency`), a 5.5-hour job limit (GitHub's limit is 6 h),
+`max_isolates` per study, the 32 vCPU cap, budgets, and the daily **Janitor** workflow. If compute
+exists while no Cloud run is in progress, the Janitor destroys it and opens an issue.
+
+### Measured: rehearsal of the GitHub path, 3 isolates, full ENA reads (2026-10-09)
+
+Run locally with the same two roles and `--ci`: 20 resources applied by the deployer, 17 tasks,
+0 failed, results valid, 20 destroyed, nothing left. Wall time 21 min, 0.72 instance-hours,
+**$0.095 total, $0.032 per genome** (full-size reads instead of the small test files).
 
 ## Checks (CI, no AWS credentials)
 
