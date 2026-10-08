@@ -79,7 +79,7 @@ log "submit smoke job as $runner"
 creds=$(aws sts assume-role --role-arn "$runner" --role-session-name amr-smoke \
     --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)
 read -r rk rs rt <<< "$creds"
-job=$(AWS_ACCESS_KEY_ID=$rk AWS_SECRET_ACCESS_KEY=$rs AWS_SESSION_TOKEN=$rt AWS_PROFILE='' \
+job=$(env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$rk" AWS_SECRET_ACCESS_KEY="$rs" AWS_SESSION_TOKEN="$rt" \
     aws batch submit-job --region "$region" --job-name amr-smoke --job-queue "$queue" \
     --job-definition "$jobdef" --tags "Study=smoke,Run=$(date -u +%Y%m%dT%H%M)" \
     --query jobId --output text)

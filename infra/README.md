@@ -63,6 +63,10 @@ silently passed.
 | `terraform destroy` (29 resources) | 2.5 min |
 | **Total** | **11 min** |
 
+AWS Batch creates its own empty default log group `/aws/batch/job` whenever a compute
+environment is created. It is not managed here (jobs log to `/amr/batch`), costs nothing, and
+is left alone; managing it caused apply failures when Batch re-created it.
+
 One small spot instance for about 4 minutes: well under $0.01 (billing data appears a day later).
 `destroy` leaves only the deregistered (`INACTIVE`) job definition `amr-smoke`, which AWS Batch
 cannot delete and which costs nothing.
