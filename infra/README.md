@@ -44,6 +44,20 @@ Applies `main`, runs one 1-vCPU job that writes to S3 with the host AWS CLI, wai
 Batch to scale back to 0, destroys everything, and checks that no tagged resources remain.
 Destroy runs even if a step fails.
 
+### Measured (2026-10-08, eu-west-1)
+
+| Step | Time |
+|---|---|
+| `terraform apply` (29 resources) | 1 min 20 s |
+| Job queued → spot instance up → job done | 4 min (3.7 min is instance start + AWS CLI install) |
+| Scale back to 0 vCPU after the job | 2 min |
+| `terraform destroy` (29 resources) | 2.5 min |
+| **Total** | **11 min** |
+
+One small spot instance for about 4 minutes: well under $0.01 (billing data appears a day later).
+`destroy` leaves only the deregistered (`INACTIVE`) job definition `amr-smoke`, which AWS Batch
+cannot delete and which costs nothing.
+
 ## Checks (CI, no AWS credentials)
 
 `terraform fmt`, `validate` (both roots), `terraform test` (plan tests with a mocked

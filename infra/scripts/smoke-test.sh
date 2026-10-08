@@ -23,16 +23,26 @@ cleanup() {
         aws s3 rm "s3://$bucket/smoke/" --recursive --quiet || true
     fi
     "$TF" destroy -auto-approve -input=false
-    log "leftover check (tag Project=amr-cloud-pipeline, excluding the bootstrap state bucket)"
-    sleep 60 # the tagging API is eventually consistent
-    left=$(aws resourcegroupstaggingapi get-resources \
-        --tag-filters Key=Project,Values=amr-cloud-pipeline Key=ManagedBy,Values=terraform \
-        --query 'ResourceTagMappingList[?!contains(ResourceARN, `amr-tfstate`)].ResourceARN' --output text)
-    if [ -n "$left" ]; then
-        echo "WARNING: still tagged (may be eventual consistency; recheck in a few minutes):"
-        echo "$left" | tr '\t' '\n'
+    log "leftover check (asks each service directly; the tagging index lags behind deletions)"
+    region=$(aws configure get region || echo eu-west-1)
+    leftovers=$(
+        printf 'instances=%s ' "$(aws ec2 describe-instances --region "$region" \
+            --filters Name=tag:Project,Values=amr-cloud-pipeline Name=instance-state-name,Values=pending,running,stopping,stopped \
+            --query 'length(Reservations)' --output text)"
+        printf 'volumes=%s ' "$(aws ec2 describe-volumes --region "$region" \
+            --filters Name=tag:Project,Values=amr-cloud-pipeline --query 'length(Volumes)' --output text)"
+        printf 'vpcs=%s ' "$(aws ec2 describe-vpcs --region "$region" \
+            --filters Name=tag:Project,Values=amr-cloud-pipeline --query 'length(Vpcs)' --output text)"
+        printf 'compute_envs=%s ' "$(aws batch describe-compute-environments --region "$region" \
+            --compute-environments amr-spot --query 'length(computeEnvironments)' --output text)"
+        printf 'roles=%s ' "$(aws iam list-roles --query 'length(Roles[?starts_with(RoleName, `amr-`)])' --output text)"
+        aws s3api head-bucket --bucket "amr-pipeline-$account" > /dev/null 2>&1 && printf 'bucket=1' || printf 'bucket=0'
+    )
+    echo "$leftovers"
+    if echo "$leftovers" | grep -qE '=[1-9]'; then
+        echo "WARNING: project resources still exist (bucket=1 is expected only if results/ was kept)"
     else
-        echo "nothing left"
+        echo "nothing left (inactive job definitions remain by AWS design; they cost nothing)"
     fi
     log "total time: $(( ($(date +%s) - start) / 60 )) min; exit status $status"
 }
