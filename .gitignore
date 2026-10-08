@@ -40,3 +40,6 @@ conf/containers_*.config
 *.tfstate.*
 *.tfplan
 infra/*/backend.hcl
+
+# Local copies of cloud runs (results, trace, cost)
+runs/

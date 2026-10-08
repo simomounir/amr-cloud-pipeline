@@ -58,6 +58,8 @@ jobs:
       - name: Build amrtools image
         run: docker build -f containers/amrtools/Dockerfile -t "$AMRTOOLS_IMAGE" .
       - run: nf-test test tests/ --tag stub,validation --profile test,docker
+      - name: AWS Batch profile renders
+        run: nextflow config -profile awsbatch,test . > /dev/null
 
   dashboard:
     runs-on: ubuntu-latest
