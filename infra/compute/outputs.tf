@@ -18,3 +18,7 @@ output "job_role_arn" {
 output "smoke_job_definition" {
   value = aws_batch_job_definition.smoke.name
 }
+
+output "log_group" {
+  value = aws_cloudwatch_log_group.batch.name
+}

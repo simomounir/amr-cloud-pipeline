@@ -52,6 +52,8 @@ cleanup() {
             --job-queues amr-queue --query 'length(jobQueues)' --output text
         count launch_templates aws ec2 describe-launch-templates --region "$region" \
             --filters Name=tag:Project,Values=amr-cloud-pipeline --query 'length(LaunchTemplates)' --output text
+        count log_groups aws logs describe-log-groups --region "$region" \
+            --log-group-name-prefix /amr/batch --query 'length(logGroups)' --output text
         count compute_roles aws iam list-roles \
             --query 'length(Roles[?RoleName==`amr-batch-instance` || RoleName==`amr-batch-job`])' --output text
     )

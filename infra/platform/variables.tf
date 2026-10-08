@@ -16,7 +16,7 @@ locals {
   jobs_arn      = "arn:aws:batch:${var.region}:${local.account_id}:job/*"
   job_defs      = ["arn:aws:batch:${var.region}:${local.account_id}:job-definition/nf-*", "arn:aws:batch:${var.region}:${local.account_id}:job-definition/amr-*"]
   job_role_arn  = "arn:aws:iam::${local.account_id}:role/amr-batch-job"
-  log_group_arn = "arn:aws:logs:${var.region}:${local.account_id}:log-group:/aws/batch/job:*"
+  log_group_arn = "arn:aws:logs:${var.region}:${local.account_id}:log-group:/amr/batch:*"
   tags = {
     Project   = local.project
     ManagedBy = "terraform"

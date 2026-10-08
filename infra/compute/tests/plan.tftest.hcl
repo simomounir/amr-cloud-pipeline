@@ -81,6 +81,15 @@ run "iam_is_scoped_to_project_resources" {
   }
 }
 
+run "logs_use_project_group" {
+  command = plan
+
+  assert {
+    condition     = aws_cloudwatch_log_group.batch.name == "/amr/batch" && aws_cloudwatch_log_group.batch.retention_in_days == 7
+    error_message = "Jobs log to the project group /amr/batch (7-day retention), not Batch's default group."
+  }
+}
+
 run "boot_script_fails_closed" {
   command = plan
 

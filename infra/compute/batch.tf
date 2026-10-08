@@ -1,9 +1,11 @@
 # Spot-only Batch: scales to zero when idle, capped at var.max_vcpus.
 
+# Project log group (not Batch's default /aws/batch/job, which Batch re-creates on its own
+# and would then block the next apply). Jobs send logs here via their logConfiguration.
 resource "aws_cloudwatch_log_group" "batch" {
   #checkov:skip=CKV_AWS_158:Default CloudWatch encryption is sufficient; KMS adds cost
   #checkov:skip=CKV_AWS_338:Job logs are only for debugging a run; 7 days keeps them cheap
-  name              = "/aws/batch/job"
+  name              = local.log_group
   retention_in_days = 7
 }
 
@@ -91,6 +93,9 @@ resource "aws_batch_compute_environment" "spot" {
   lifecycle {
     ignore_changes = [compute_resources[0].desired_vcpus]
   }
+
+  # Destroy order: instances (and their last log lines) go before the log group.
+  depends_on = [aws_cloudwatch_log_group.batch]
 }
 
 resource "aws_batch_job_queue" "main" {
@@ -129,6 +134,14 @@ resource "aws_batch_job_definition" "smoke" {
       { type = "VCPU", value = "1" },
       { type = "MEMORY", value = "1024" },
     ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.batch.name
+        "awslogs-region"        = var.region
+        "awslogs-stream-prefix" = "amr"
+      }
+    }
     volumes     = [{ name = "awscli", host = { sourcePath = local.aws_cli_dir } }]
     mountPoints = [{ sourceVolume = "awscli", containerPath = local.aws_cli_dir, readOnly = true }]
   })

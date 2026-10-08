@@ -28,6 +28,7 @@ locals {
   bucket_name = "amr-pipeline-${local.account_id}"
   bucket_arn  = "arn:aws:s3:::${local.bucket_name}"
   queue_name  = "amr-queue"
+  log_group   = "/amr/batch"
   aws_cli_dir = "/opt/aws-cli"
   # The platform root's runner policy passes this role by its fixed name.
   job_role_name = "amr-batch-job"
