@@ -17,8 +17,10 @@ import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 
+# eu-west-1 list prices; other regions differ slightly (the report is an estimate; Cost Explorer
+# has the billed figure).
 DISK_GB = 100  # launch template root volume (infra/compute/batch.tf)
-GP3_USD_PER_GB_MONTH = 0.088  # eu-west-1
+GP3_USD_PER_GB_MONTH = 0.088
 PUBLIC_IPV4_USD_PER_HOUR = 0.005
 HOURS_PER_MONTH = 730
 MIN_BILLED = timedelta(seconds=60)  # Linux spot: per second, 60 s minimum
@@ -128,10 +130,11 @@ def main(argv: list[str] | None = None) -> int:
             f"{r['instance']} {r['type']:12} {r['az']} {minutes:6.1f} min "
             f"@ ${r['spot_usd_per_hour']:.4f}/h -> ${cost:.4f}"
         )
+    per_sample = summary["per_sample_usd"]
+    per_sample_text = f"${per_sample:.4f}" if per_sample is not None else "n/a"
     print(
-        f"total ${summary['total_usd']:.4f} for {args.samples} samples "
-        f"= ${summary['per_sample_usd']:.4f} per sample "
-        f"({summary['instance_hours']:.2f} instance-hours)"
+        f"total ${summary['total_usd']:.4f} for {args.samples} samples, "
+        f"per sample: {per_sample_text} ({summary['instance_hours']:.2f} instance-hours)"
     )
     if args.json:
         with open(args.json, "w") as handle:

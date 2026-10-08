@@ -35,3 +35,24 @@ ST147/NDM, ST23/none), and record a measured cost per genome. Compute destroyed 
 4. Live run on the test samplesheet (user approved the design incl. this run); compare biology
    with the local full test; record time and cost in README.
 5. Review, PR, merge with the user's OK.
+
+## Amendments from the live runs and the final review
+
+- Credentials: Nextflow gets a temporary AWS config whose `credential_process` refreshes the
+  runner role (an `aws login` session makes assume-role "role chaining", capped at 1 h).
+- Batch jobs get `aws.batch.jobRole` (generated per run; the ARN contains the account ID).
+- Hosts install a self-contained AWS CLI (Miniforge + conda `awscli`); the official build fails
+  in minimal images such as Shovill's (no `libz`). Nextflow mounts `cliPath` itself.
+- Cost report runs after destroy (exact termination times). One run at a time (guard on
+  `amr-spot`); signals route through cleanup, which stops Nextflow and cannot be interrupted.
+
+## Carried to 4d / 4e (from the final review)
+
+- 4d: GitHub `concurrency` group; `if: always()` destroy step and `timeout-minutes`; a janitor
+  workflow for orphaned compute; OIDC assumes the runner role directly (not chained, no
+  `source_profile`, no `caffeinate` on Linux).
+- 4e: pass `Study`/`Run` into Terraform tags so instances carry them (cost per study, and the cost
+  report filters by `Run`); `--resume <run_id>` keeping the `.nextflow` cache; `_SUCCESS` marker
+  after validation; per-label `time` limits; consider `errorStrategy 'ignore'` plus a failed-sample
+  list; pin Miniforge version + sha256 and `awscli`; test credential refresh beyond 1 h; head-node
+  staging of FASTQ over HTTP (pass ENA URLs or stage to S3 first).

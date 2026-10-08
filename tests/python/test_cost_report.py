@@ -78,3 +78,17 @@ def test_summary_per_sample():
     assert summary["total_usd"] == pytest.approx(0.042)
     assert summary["per_sample_usd"] == pytest.approx(0.014)
     assert summary["instance_hours"] == pytest.approx(0.5)
+
+
+def test_main_prints_without_samples(monkeypatch, capsys):
+    launched = "2026-10-08T18:00:00+00:00"
+    inst = instance("i-1", "c6i.xlarge", "eu-west-1a", launched,
+                    "Service initiated (2026-10-08 18:30:00 GMT)")  # fmt: skip
+    responses = {
+        "describe-instances": {"Reservations": [{"Instances": [inst]}]},
+        "describe-spot-price-history": {"SpotPriceHistory": PRICES},
+    }
+    monkeypatch.setattr(cost_report, "_aws", lambda *args: responses[args[1]])
+    assert cost_report.main(["--region", "eu-west-1", "--since", "2026-10-08T17:00:00Z",
+                             "--samples", "0"]) == 0  # fmt: skip
+    assert "per sample: n/a" in capsys.readouterr().out

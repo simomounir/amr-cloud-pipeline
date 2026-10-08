@@ -25,7 +25,8 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$study" ] && [ -n "$input" ] || { echo "usage: $0 --study <name> --input <csv> [--profile <p>]" >&2; exit 2; }
-[[ "$study" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "study must be lowercase letters, digits and '-'" >&2; exit 2; }
+[[ "$study" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || { echo "study: lowercase letters, digits and '-', at most 40 characters" >&2; exit 2; }
+[ -f "$input" ] || { echo "input not found: $input" >&2; exit 2; }
 input=$(cd "$(dirname "$input")" && pwd)/$(basename "$input")
 samples=$(( $(grep -c . "$input") - 1 ))
 run_id=$(date -u +%Y%m%dT%H%M%SZ)
@@ -43,17 +44,40 @@ region=$("$TF" -chdir="$infra/platform" output -raw region)
 start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 compute_applied=0
 
+# One run at a time: all runs share the compute root, so a second run's destroy would remove the
+# first run's queue mid-flight.
+existing=$(aws batch describe-compute-environments --region "$region" --compute-environments amr-spot \
+    --query 'length(computeEnvironments)' --output text)
+if [ "$existing" != "0" ]; then
+    echo "compute already exists (another run in progress, or a previous destroy failed)." >&2
+    echo "Check, then: terraform -chdir=infra/compute destroy" >&2
+    exit 1
+fi
+
+stop_nextflow() {
+    # Ask Nextflow to shut down (it cancels its Batch jobs) and wait up to 3 minutes.
+    pkill -TERM -f -- "--run_id $run_id" 2> /dev/null || return 0
+    for _ in $(seq 90); do
+        pgrep -f -- "--run_id $run_id" > /dev/null || return 0
+        sleep 2
+    done
+    pkill -KILL -f -- "--run_id $run_id" 2> /dev/null || true
+}
+
 cleanup() {
     local status=$? rc=0
     trap - EXIT
+    trap '' INT TERM HUP # never interrupt destroy halfway
+    stop_nextflow
     [ -n "${nf_config:-}" ] && rm -f "$nf_config"
+    rm -rf "$local_dir/db-build"
     log "destroy compute"
     "$TF" -chdir="$infra/compute" destroy -auto-approve -input=false || rc=$?
     if [ "$compute_applied" = 1 ]; then
         # After destroy every instance has a termination time, so each is priced for exactly
         # how long it ran (terminated instances stay visible for about an hour).
         log "cost report"
-        python3 "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
+        "$root/.venv/bin/python" "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
             --samples "$samples" --json "$local_dir/cost.json" || echo "cost report failed (see Cost Explorer tomorrow)"
     fi
     log "leftover check"
@@ -77,16 +101,20 @@ cleanup() {
     exit "$rc"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 log "compute: apply"
 "$TF" -chdir="$infra/compute" apply -auto-approve -input=false
 compute_applied=1
 
 log "AMRFinderPlus database in s3://$bucket/refs/"
-db=$(aws s3 ls "s3://$bucket/refs/" 2> /dev/null | awk '{print $4}' | grep -E '^amrfinderdb-.*\.tar\.gz$' | sort | tail -1 || true)
+db=$(aws s3 ls "s3://$bucket/refs/" 2> /dev/null | awk '{print $4}' | grep -E '^amrfinderdb-.*\.tar\.gz$' | sort -V | tail -1 || true)
 if [ -z "$db" ]; then
     log "no database in S3 yet: building one (docker, amd64) and uploading"
-    tmp=$(mktemp -d)
+    tmp="$local_dir/db-build"
+    mkdir -p "$tmp"
     docker run --rm --platform linux/amd64 -u "$(id -u):$(id -g)" -v "$tmp:/work" -w /work \
         quay.io/biocontainers/ncbi-amrfinderplus:4.2.7--hf69ffd2_0 \
         sh -c 'amrfinder_update -d amrfinderdb && v=$(readlink amrfinderdb/latest) && tar czf "amrfinderdb-$v.tar.gz" -C "amrfinderdb/$v" . && rm -rf amrfinderdb'

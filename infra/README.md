@@ -100,6 +100,9 @@ contains the account ID).
 | **Cost** | **$0.063 total, $0.021 per genome** (spot compute, disk, public IPv4) |
 | Biology | ST13/KPC-2, ST147/NDM, ST23/none: identical to local and CI runs |
 
+At n=3 most of this is fixed overhead (instance boot and the AWS CLI install); expect the cost per
+genome to change at study scale. It is re-measured for every run (`runs/<study>/<run>/cost.json`).
+
 ## Checks (CI, no AWS credentials)
 
 `terraform fmt`, `validate` (all roots), `terraform test` (plan tests with a mocked
