@@ -28,14 +28,12 @@ locals {
   bucket_name = "amr-pipeline-${local.account_id}"
   bucket_arn  = "arn:aws:s3:::${local.bucket_name}"
   queue_name  = "amr-queue"
-  queue_arn   = "arn:aws:batch:${var.region}:${local.account_id}:job-queue/${local.queue_name}"
-  job_defs    = ["arn:aws:batch:${var.region}:${local.account_id}:job-definition/nf-*", "arn:aws:batch:${var.region}:${local.account_id}:job-definition/amr-*"]
   aws_cli_dir = "/opt/aws-cli"
-  # Built from the name (not the resource) so IAM policies are fully known at plan time.
+  # The platform root's runner policy passes this role by its fixed name.
   job_role_name = "amr-batch-job"
-  job_role_arn  = "arn:aws:iam::${local.account_id}:role/${local.job_role_name}"
   tags = {
     Project   = local.project
     ManagedBy = "terraform"
+    Component = "compute"
   }
 }

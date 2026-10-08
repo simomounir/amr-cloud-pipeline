@@ -28,6 +28,8 @@ resource "aws_launch_template" "batch" {
   }
 
   # Batch requires MIME multipart user data. Installs AWS CLI v2 for Nextflow's S3 staging.
+  # If the install fails, the instance shuts down so Batch replaces it instead of running
+  # every job on a host without the CLI.
   user_data = base64encode(<<-EOT
     MIME-Version: 1.0
     Content-Type: multipart/mixed; boundary="==BOUNDARY=="
@@ -37,11 +39,15 @@ resource "aws_launch_template" "batch" {
 
     #!/bin/bash
     set -euo pipefail
-    dnf install -y unzip
+    trap 'echo "AWS CLI install failed; shutting down so Batch replaces this host"; shutdown -h now' ERR
+    for attempt in 1 2 3 4 5; do dnf install -y unzip && break || sleep $((attempt * 5)); done
+    command -v unzip
     cd /tmp
-    curl -sSfL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+    curl -sSfL --retry 5 --retry-all-errors --connect-timeout 10 \
+      "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
     unzip -q awscliv2.zip
     ./aws/install -i ${local.aws_cli_dir} -b ${local.aws_cli_dir}/bin
+    ${local.aws_cli_dir}/bin/aws --version
     rm -rf aws awscliv2.zip
 
     --==BOUNDARY==--

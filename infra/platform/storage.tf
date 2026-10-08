@@ -1,5 +1,6 @@
-# One bucket: work/<study>/<run>/ (Nextflow scratch, expires after 7 days) and
-# results/<study>/<run>/ (kept). force_destroy is off so destroy fails while results exist.
+# Long-lived: survives every compute destroy. work/<study>/<run>/ (Nextflow scratch, expires
+# after 7 days) and results/<study>/<run>/ (kept). force_destroy is off so even retiring the
+# platform cannot silently delete results.
 
 resource "aws_s3_bucket" "pipeline" {
   #checkov:skip=CKV_AWS_145:SSE-S3 is sufficient; a KMS key costs ~$1/month in an account kept at ~$0
@@ -9,6 +10,10 @@ resource "aws_s3_bucket" "pipeline" {
   #checkov:skip=CKV_AWS_21:Versioning is not useful for scratch and reproducible results
   bucket        = local.bucket_name
   force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline" {

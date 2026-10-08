@@ -90,12 +90,14 @@ jobs:
         run: terraform fmt -check -recursive infra
       - name: Validate
         run: |
-          for root in bootstrap main; do
+          for root in bootstrap platform compute; do
             terraform -chdir=infra/$root init -backend=false -input=false
             terraform -chdir=infra/$root validate
           done
       - name: Plan tests (mocked AWS, no credentials)
-        run: terraform -chdir=infra/main test
+        run: |
+          terraform -chdir=infra/platform test
+          terraform -chdir=infra/compute test
       - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
         with:
           tflint_version: v0.64.0
@@ -105,7 +107,8 @@ jobs:
         run: |
           tflint --init --config "$PWD/infra/.tflint.hcl"
           tflint --chdir=infra/bootstrap --config "$PWD/infra/.tflint.hcl"
-          tflint --chdir=infra/main --config "$PWD/infra/.tflint.hcl"
+          tflint --chdir=infra/platform --config "$PWD/infra/.tflint.hcl"
+          tflint --chdir=infra/compute --config "$PWD/infra/.tflint.hcl"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"

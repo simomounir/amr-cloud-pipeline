@@ -2,7 +2,7 @@
 #   terraform init -backend-config=backend.hcl
 terraform {
   backend "s3" {
-    key          = "main/terraform.tfstate"
+    key          = "platform/terraform.tfstate"
     region       = "eu-west-1"
     encrypt      = true
     use_lockfile = true

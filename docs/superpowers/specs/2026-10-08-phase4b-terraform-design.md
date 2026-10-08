@@ -137,3 +137,18 @@ The user will design their own studies and runs. 4b must not block this:
 - Smoke test: apply → job succeeds → scale to 0 → destroy → zero tagged resources left;
   measured cost recorded in `infra/README.md`.
 - CI `infra` job (fmt, validate, tflint, checkov, terraform test) green on main.
+
+## 10. Amendments after the final review
+
+- **Three roots by lifetime** (supersedes `main/`): `bootstrap/` (state), `platform/`
+  (pipeline bucket with protections + `amr-pipeline-runner`, long-lived), `compute/` (network,
+  Batch, instance/job roles, log group; apply → run → destroy). Reason: destroying a single
+  root stripped the bucket's protections before failing on non-empty results, and deleted the
+  runner role that GitHub OIDC (4d) must assume between runs.
+- Runner `SubmitJob`/`TagResource` also allow `job/*` (AWS requires the job ARN). The smoke test
+  submits as the runner role so its policy is exercised live.
+- `RegisterJobDefinition` **is** resource-scoped (to `nf-*`/`amr-*`); §5's claim was wrong.
+- Instance role has no S3 access (containers use the job role; metadata hop limit 1).
+- Boot script retries downloads, verifies the CLI and shuts the host down on failure.
+- No plan test asserts "no NAT/EIP" (Terraform tests cannot assert a resource type is absent);
+  absence is visible in review and in the smoke test's resource count.

@@ -3,7 +3,8 @@ output "region" {
 }
 
 output "bucket" {
-  value = aws_s3_bucket.pipeline.bucket
+  description = "Platform bucket used by jobs (created by infra/platform)."
+  value       = local.bucket_name
 }
 
 output "job_queue" {
@@ -12,10 +13,6 @@ output "job_queue" {
 
 output "job_role_arn" {
   value = aws_iam_role.job.arn
-}
-
-output "runner_role_arn" {
-  value = aws_iam_role.runner.arn
 }
 
 output "smoke_job_definition" {
