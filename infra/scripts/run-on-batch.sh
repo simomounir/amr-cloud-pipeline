@@ -113,10 +113,14 @@ region = $region
 credential_process = aws configure export-credentials --profile amr-runner --format process
 region = $region
 CFG
+# Batch jobs need a role for S3 access (containers cannot use the host's credentials).
+# The ARN contains the account ID, so it is generated here rather than committed.
+job_role=$("$TF" -chdir="$infra/compute" output -raw job_role_arn)
+printf "aws.batch.jobRole = '%s'\n" "$job_role" > "$local_dir/batch-role.config"
 (
     cd "$local_dir"
     AWS_CONFIG_FILE="$nf_config" AWS_PROFILE=amr-runner-process AWS_REGION="$region" \
-        caffeinate -i "$NXF" run "$root" -profile "awsbatch$extra_profile" \
+        caffeinate -i "$NXF" run "$root" -profile "awsbatch$extra_profile" -c batch-role.config \
         --input "$input" --study "$study" --run_id "$run_id" \
         --amrfinder_db "s3://$bucket/refs/$db" \
         --outdir "s3://$bucket/results/$study/$run_id" \
