@@ -60,7 +60,7 @@ export function Explore({
             onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })} />{" "}
             Include intrinsic genes
           </label>
-          {data.elements.data && <TopElements rows={data.elements.data} />}
+          {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}
         </Panel>
         <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
           {data.isolates.data && <IsolateTable rows={data.isolates.data} showStudy />}

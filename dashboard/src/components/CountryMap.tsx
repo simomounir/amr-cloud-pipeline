@@ -19,7 +19,7 @@ export function CountryMap({
   selected?: string[];
   onPick: (country: string) => void;
 }) {
-  const { options, missing } = useMemo(() => {
+  const { options, missing, placedCount } = useMemo(() => {
     const byId = new Map(land.features.map((f) => [String(f.id), f]));
     const placed = rows.flatMap((r) => {
       const f = byId.get(isoNumeric(r.country) ?? "");
@@ -28,6 +28,7 @@ export function CountryMap({
     const missing = rows.filter((r) => !placed.some((p) => p.country === r.country));
     return {
       missing,
+      placedCount: placed.length,
       options: {
         projection: "equal-earth",
         height: 420,
@@ -56,7 +57,7 @@ export function CountryMap({
   const onPickRow = useCallback((d: unknown) => onPick((d as CountryRow).country), [onPick]);
   return (
     <>
-      <PlotFigure options={options} summary={`${rows.length} countries`} onPick={onPickRow} />
+      <PlotFigure options={options} summary={`${placedCount} countries on the map`} onPick={onPickRow} />
       {missing.length > 0 && (
         <p className="note">No map shape for: {missing.map((m) => `${m.country} (${m.genomes})`).join(", ")}.</p>
       )}

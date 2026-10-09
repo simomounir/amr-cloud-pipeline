@@ -1,9 +1,8 @@
+import { REPO } from "../config";
 import { footerEntries } from "../data/footer";
 import type { Manifest } from "../data/manifest";
 import type { AnalysisCounts } from "../data/queries";
 import type { StudyEntry } from "../data/studies";
-
-const REPO = "https://github.com/simomounir/amr-cloud-pipeline";
 
 export function Footer({
   studies,

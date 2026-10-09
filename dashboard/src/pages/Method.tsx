@@ -1,6 +1,5 @@
+import { REPO } from "../config";
 import type { StudyEntry, StudyInfo } from "../data/studies";
-
-const REPO = "https://github.com/simomounir/amr-cloud-pipeline";
 
 const unique = (values: string[]) => [...new Set(values)].join(", ");
 
@@ -31,11 +30,8 @@ export function Method({
         </li>
         <li>
           <strong>AMRFinderPlus</strong> (<code>--plus</code>) finds acquired resistance genes and mutations
-          {amrfinder && (
-            <>
-              ; version {amrfinder}, database {amrfinderDb}
-            </>
-          )}
+          {amrfinder && `; version ${amrfinder}`}
+          {amrfinder && amrfinderDb && `, database ${amrfinderDb}`}
           .
         </li>
         <li>

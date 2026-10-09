@@ -1,5 +1,6 @@
 import * as Plot from "@observablehq/plot";
 import { useCallback, useMemo } from "react";
+import { heatCellTitle } from "../data/format";
 import type { HeatCell } from "../data/queries";
 import { FAMILY_ORDER, PERIOD_ORDER, SEQUENTIAL, type Theme } from "../theme";
 import { PlotFigure } from "./PlotFigure";
@@ -69,7 +70,7 @@ export function Heatmap({
           stroke: (d: Cell) => (isSelected(d) ? "var(--ink)" : "var(--line)"),
           strokeWidth: (d: Cell) => (isSelected(d) ? 2 : 0.5),
           ariaLabel: "label",
-          title: (d: Cell) => `${d.clone}: ${d.carriers} of ${d.genomes} genomes carry ${d.family}`,
+          title: heatCellTitle,
           tip: true,
         }),
         Plot.text(rows, { ...facet, x: "family", y: "clone", text: (d: Cell) => `${Math.round(d.share * 100)}%`, fill: textColour, pointerEvents: "none" }),

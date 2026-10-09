@@ -75,6 +75,31 @@ test("consecutive map picks each apply their own country filter", async ({ page 
   await expect(page).toHaveURL(/country=India/);
 });
 
+test("a mouse click on blank map area picks nothing", async ({ page }) => {
+  await page.goto("./#/study/study-a?qc=all");
+  const map = page.locator('[data-figure="map"] svg').first();
+  await map.locator('[aria-label="Germany"]').first().click();
+  const chips = page.locator(".chips .chip:not(.chip-clear)");
+  await expect(chips).toHaveCount(1);
+  // The South Pacific, far from every dot.
+  await map.click({ position: { x: 40, y: 330 } });
+  await map.click({ position: { x: 40, y: 330 } });
+  await expect(chips).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove country Germany" })).toBeVisible();
+});
+
+test("a figure's table rows pick like the marks, from the keyboard", async ({ page }) => {
+  await page.goto("./#/study/study-a?qc=all");
+  const frame = page.locator('[data-figure="heatmap"]');
+  await frame.getByText("Show as table").click();
+  const row = frame.getByRole("button", { name: "Select ST147 carrying NDM" });
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Remove clone ST147" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove carries NDM" })).toBeVisible();
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+});
+
 test.describe("touch", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 800 } });
   test("a tap on a heatmap cell picks it", async ({ page }) => {

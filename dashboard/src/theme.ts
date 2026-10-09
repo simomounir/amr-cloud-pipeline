@@ -18,6 +18,29 @@ export function familyColour(family: string, theme: Theme = "light"): string {
   return (theme === "dark" ? DARK : LIGHT)[family] ?? (theme === "dark" ? DARK.none : LIGHT.none);
 }
 
+// Drug classes: the documented 8-slot categorical palette (validate_palette.js, adjacent pairs, both modes:
+// all checks pass; three light slots are under 3:1 on the surface, relieved by the value labels on the bars).
+// More classes than slots fold into "Other", drawn in the muted neutral.
+const CATEGORICAL: Record<Theme, string[]> = {
+  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"],
+  dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+};
+export const OTHER_CLASS = "Other";
+const OTHER_COLOUR = "#898781"; // the palette's muted neutral, same in both modes
+
+/** Legend order and colours for drug classes given most-common first; classes past the 8th become "Other". */
+export function drugClassScale(classes: string[], theme: Theme): { domain: string[]; range: string[]; fold: (c: string) => string } {
+  const palette = CATEGORICAL[theme];
+  const named = [...new Set(classes)];
+  const kept = named.length > palette.length ? named.slice(0, palette.length) : named;
+  const folded = named.length > kept.length;
+  return {
+    domain: folded ? [...kept, OTHER_CLASS] : kept,
+    range: folded ? [...palette.slice(0, kept.length), OTHER_COLOUR] : palette.slice(0, kept.length),
+    fold: (c) => (kept.includes(c) ? c : OTHER_CLASS),
+  };
+}
+
 // The heatmap's one-hue ramp (low -> high share), per mode. Only the ends are used as range; checked
 // with validate_palette.js (its categorical band/chroma checks do not apply to a ramp; lightness is
 // monotonic and the ends are far apart, dE ~52). Cells carry their % as text, so contrast of the
@@ -31,6 +54,22 @@ export const SEQUENTIAL: Record<Theme, [string, string]> = {
 export function comboFamily(combo: string): string {
   const parts = combo.split("+");
   return FAMILY_ORDER.find((f) => parts.includes(f)) ?? "other";
+}
+
+/**
+ * For a multi-family combo that shares its first family with another multi-family combo in `combos`
+ * (same fill, indistinguishable), the family to outline it in: its next family in FAMILY_ORDER. Else null.
+ */
+export function distinguishingFamily(combo: string, combos: string[]): string | null {
+  const order = (c: string) =>
+    c
+      .split("+")
+      .map((f) => (FAMILY_ORDER.includes(f) ? f : "other"))
+      .sort((a, b) => FAMILY_ORDER.indexOf(a) - FAMILY_ORDER.indexOf(b));
+  const parts = order(combo);
+  if (parts.length < 2) return null;
+  const shared = combos.some((c) => c !== combo && order(c).length > 1 && comboFamily(c) === comboFamily(combo));
+  return shared ? parts.find((f) => f !== comboFamily(combo)) ?? null : null;
 }
 
 /** Combos sorted by their families in FAMILY_ORDER (single before multi within a family). */

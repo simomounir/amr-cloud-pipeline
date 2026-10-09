@@ -11,7 +11,7 @@ import { RichText } from "../components/RichText";
 import { Timeline } from "../components/Timeline";
 import { TopElements } from "../components/TopElements";
 import type { Connection } from "../data/connection";
-import { formatCostPerGenome } from "../data/format";
+import { formatCostPerGenome, mapCaption } from "../data/format";
 import { EMPTY_FILTERS, type Filters } from "../data/filters";
 import * as q from "../data/queries";
 import type { Finding, StudyEntry, StudyInfo } from "../data/studies";
@@ -84,8 +84,12 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
     () => ({
       columns: ["Clone", "Period", "Carbapenemase family", "Carriers", "Genomes", "Share"],
       rows: (data ?? []).map((c) => [c.clone, c.period, c.family, c.carriers, c.genomes, pct(c.share)]),
+      pick: {
+        label: (row) => `Select ${row[0]} carrying ${row[2]}`,
+        onPick: (row) => onPick(String(row[0]), String(row[2])),
+      },
     }),
-    [data],
+    [data, onPick],
   );
   const n = loaded?.n ?? 0;
   if (error) return <FigureError error={error} />;
@@ -112,15 +116,19 @@ function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
     [setFilters],
   );
   const selected = useMemo(
-    () => ({ clones: filters.clones, periods: filters.periods, combos: filters.combos }),
-    [filters.clones, filters.periods, filters.combos],
+    () => ({ clones: filters.clones, periods: filters.periods, combos: filters.combos, families: filters.families }),
+    [filters.clones, filters.periods, filters.combos, filters.families],
   );
   const table = useMemo<FigureTable>(
     () => ({
       columns: ["Clone", "Period", "Carbapenemase combination", "Genomes", "Share of clone and period"],
       rows: (data ?? []).map((r) => [r.clone, r.period, r.combo, r.genomes, pct(r.share)]),
+      pick: {
+        label: (row) => `Select ${row[0]}, ${row[1]}, ${row[2]}`,
+        onPick: (row) => onPick(String(row[0]), String(row[1]), String(row[2])),
+      },
     }),
-    [data],
+    [data, onPick],
   );
   if (error) return <FigureError error={error} />;
   const n = (data ?? []).reduce((sum, r) => sum + r.genomes, 0);
@@ -150,15 +158,14 @@ function MapFigure({ conn, studyFilters, filters, setFilters }: FigureProps) {
     () => ({
       columns: ["Country", "Genomes", "Clones", "Carbapenemases"],
       rows: (data?.rows ?? []).map((r) => [r.country, r.genomes, r.clones, r.families]),
+      pick: { label: (row) => `Select ${row[0]}`, onPick: (row) => onPick(String(row[0])) },
     }),
-    [data],
+    [data, onPick],
   );
   if (error) return <FigureError error={error} />;
   const mapped = (data?.rows ?? []).reduce((sum, r) => sum + r.genomes, 0);
   const noCountry = data?.noCountry ?? 0;
-  const caption =
-    `n = ${mapped + noCountry} genomes; ${noCountry} ${noCountry === 1 ? "genome has" : "genomes have"} no country ` +
-    "in their ENA record and are not mapped. Country as recorded in ENA; the source table assigns countries to all genomes.";
+  const caption = mapCaption(mapped, noCountry);
   return (
     <FigureFrame figure="map" title="Where the genomes come from" caption={caption} table={table}>
       {data && (
@@ -318,7 +325,7 @@ function LinkedViews({ conn, studyFilters, setFilters, theme }: Omit<FigureProps
           <input type="checkbox" checked={includeIntrinsic} onChange={(e) => setIncludeIntrinsic(e.target.checked)} />{" "}
           Include intrinsic genes
         </label>
-        {data.elements.data && <TopElements rows={data.elements.data} />}
+        {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}
       </Panel>
       <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
         {data.isolates.data && <IsolateTable rows={data.isolates.data} />}

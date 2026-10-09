@@ -26,21 +26,31 @@ export function PlotFigure({
     // click, so touch and pen keep Plot's handling and only a mouse leaving clears the remembered datum.
     const valueOf = () => (figure as unknown as { value?: unknown }).value;
     let pointed: unknown = null;
+    let pointerType = "";
     const remember = () => {
       const value = valueOf();
       if (value != null) pointed = value;
+      // A mouse that moved onto blank plot area has nothing under it; touch keeps its datum until the click.
+      else if (pointerType === "mouse") pointed = null;
+    };
+    const track = (event: Event) => {
+      pointerType = (event as PointerEvent).pointerType;
     };
     const unpinned = (event: Event) => {
+      track(event);
       remember();
-      if ((event as PointerEvent).pointerType === "mouse") event.stopPropagation();
+      if (pointerType === "mouse") event.stopPropagation();
     };
     const leave = (event: Event) => {
       if ((event as PointerEvent).pointerType === "mouse") pointed = null;
     };
     const click = () => {
       if (onPick && pointed != null) onPick(pointed);
+      // A tap's datum belongs to that tap only (touch gives no pointerleave before the next one).
+      pointed = null;
     };
     figure.addEventListener("input", remember);
+    figure.addEventListener("pointermove", track, true);
     figure.addEventListener("pointerdown", unpinned, true);
     figure.addEventListener("pointerleave", leave);
     figure.addEventListener("click", click);
@@ -48,6 +58,7 @@ export function PlotFigure({
     ref.current?.replaceChildren(figure);
     return () => {
       figure.removeEventListener("input", remember);
+      figure.removeEventListener("pointermove", track, true);
       figure.removeEventListener("pointerdown", unpinned, true);
       figure.removeEventListener("pointerleave", leave);
       figure.removeEventListener("click", click);

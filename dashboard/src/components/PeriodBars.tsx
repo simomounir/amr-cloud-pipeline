@@ -1,7 +1,7 @@
 import * as Plot from "@observablehq/plot";
 import { useCallback, useMemo } from "react";
 import type { MixRow } from "../data/queries";
-import { PERIOD_ORDER, comboFamily, familyColour, sortCombos, type Theme } from "../theme";
+import { PERIOD_ORDER, comboFamily, distinguishingFamily, familyColour, sortCombos, type Theme } from "../theme";
 import { PlotFigure } from "./PlotFigure";
 
 const isMulti = (combo: string) => combo.includes("+");
@@ -10,6 +10,8 @@ export interface PeriodSelection {
   clones: string[];
   periods: string[];
   combos: string[];
+  /** Carbapenemase families picked elsewhere (the heatmap): only segments whose combo contains one stay highlighted. */
+  families?: string[];
 }
 
 export function PeriodBars({
@@ -19,7 +21,7 @@ export function PeriodBars({
   theme,
 }: {
   rows: MixRow[];
-  /** The current selection: matching bars are outlined, the others dimmed. */
+  /** The current selection: matching segments are outlined, the others dimmed. */
   selected: PeriodSelection;
   onPick: (clone: string, period: string, combo: string) => void;
   theme: Theme;
@@ -28,8 +30,16 @@ export function PeriodBars({
   const clones = useMemo(() => [...new Set(rows.map((r) => r.clone))].sort(), [rows]);
   const options = useMemo<Plot.PlotOptions>(() => {
     const has = (list: string[], v: string) => list.length === 0 || list.includes(v);
-    const hasSelection = selected.clones.length + selected.periods.length + selected.combos.length > 0;
-    const isSelected = (d: MixRow) => hasSelection && has(selected.clones, d.clone) && has(selected.periods, d.period) && has(selected.combos, d.combo);
+    const families = selected.families ?? [];
+    const hasSelection = selected.clones.length + selected.periods.length + selected.combos.length + families.length > 0;
+    const hasFamily = (combo: string) => families.length === 0 || combo.split("+").some((f) => families.includes(f));
+    const isSelected = (d: MixRow) =>
+      hasSelection && has(selected.clones, d.clone) && has(selected.periods, d.period) && has(selected.combos, d.combo) && hasFamily(d.combo);
+    // Combos with the same first family look alike; their outline takes the second family's colour.
+    const outline = (combo: string) => {
+      const family = distinguishingFamily(combo, combos);
+      return family === null ? "var(--surface)" : familyColour(family, theme);
+    };
     return {
         height: 360,
         marginBottom: 70,
@@ -47,8 +57,8 @@ export function PeriodBars({
               y: "share",
               fill: "combo",
               fillOpacity: (d: MixRow) => (isMulti(d.combo) ? 0.55 : 1) * (hasSelection && !isSelected(d) ? 0.35 : 1),
-              stroke: (d: MixRow) => (isSelected(d) ? "var(--ink)" : "var(--surface)"),
-              strokeWidth: (d: MixRow) => (isSelected(d) ? 3 : 2),
+              stroke: (d: MixRow) => (isSelected(d) ? "var(--ink)" : outline(d.combo)),
+              strokeWidth: (d: MixRow) => (isSelected(d) ? 3 : distinguishingFamily(d.combo, combos) === null ? 2 : 1.5),
               ariaLabel: (d: MixRow) => `${d.clone} ${d.period} ${d.combo}`,
               title: (d: MixRow) => `${d.clone}, ${d.period}\n${d.combo}: ${d.genomes} genomes (${Math.round(d.share * 100)}%)`,
               tip: true,
@@ -64,7 +74,12 @@ export function PeriodBars({
       <ul className="legend" aria-label="Carbapenemase combinations">
         {combos.map((c) => (
           <li key={c}>
-            <span className="swatch" style={{ background: familyColour(comboFamily(c), theme), opacity: isMulti(c) ? 0.55 : 1 }} aria-hidden="true" />
+            <span className="swatch" aria-hidden="true">
+              <span className="swatch-fill" style={{ background: familyColour(comboFamily(c), theme), opacity: isMulti(c) ? 0.55 : 1 }} />
+              {distinguishingFamily(c, combos) !== null && (
+                <span className="swatch-ring" style={{ borderColor: familyColour(distinguishingFamily(c, combos) as string, theme) }} />
+              )}
+            </span>
             {c}
           </li>
         ))}

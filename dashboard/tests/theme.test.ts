@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { comboFamily, sortCombos } from "../src/theme";
+import { comboFamily, distinguishingFamily, drugClassScale, sortCombos } from "../src/theme";
 
 test("comboFamily is the earliest family in FAMILY_ORDER that the combo contains", () => {
   expect(comboFamily("KPC")).toBe("KPC");
@@ -33,4 +33,24 @@ test("sortCombos ties are alphabetical and duplicates are dropped", () => {
 
 test("sortCombos ranks an unknown family as other", () => {
   expect(sortCombos(["none", "GES", "IMP", "other", "KPC"])).toEqual(["KPC", "IMP", "GES", "other", "none"]);
+});
+
+test("distinguishingFamily outlines only multi-family combos that share a first family with another", () => {
+  const combos = ["NDM", "NDM+OXA-48-like", "NDM+VIM", "KPC+VIM"];
+  expect(distinguishingFamily("NDM+OXA-48-like", combos)).toBe("OXA-48-like");
+  expect(distinguishingFamily("NDM+VIM", combos)).toBe("VIM");
+  expect(distinguishingFamily("NDM", combos)).toBeNull();
+  expect(distinguishingFamily("KPC+VIM", combos)).toBeNull();
+});
+
+test("drugClassScale gives each class a palette slot per theme and folds the ones past the eighth into Other", () => {
+  const few = drugClassScale(["BETA-LACTAM", "AMINOGLYCOSIDE", "BETA-LACTAM"], "light");
+  expect(few.domain).toEqual(["BETA-LACTAM", "AMINOGLYCOSIDE"]);
+  expect(few.range).toEqual(["#2a78d6", "#eb6834"]);
+  expect(drugClassScale(["A"], "dark").range).toEqual(["#3987e5"]);
+  const many = drugClassScale(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"], "dark");
+  expect(many.domain).toEqual(["a", "b", "c", "d", "e", "f", "g", "h", "Other"]);
+  expect(many.range).toHaveLength(9);
+  expect(many.fold("i")).toBe("Other");
+  expect(many.fold("h")).toBe("h");
 });

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 export interface FigureTable {
   columns: string[];
   rows: (string | number | null)[][];
+  /** Makes each row's first cell a button that applies the same pick as clicking the mark. */
+  pick?: { label: (row: (string | number | null)[]) => string; onPick: (row: (string | number | null)[]) => void };
 }
 
 /** A titled figure with its caption (n) and the same rows as a table, for readers who cannot rely on colour. */
@@ -38,9 +40,17 @@ export function FigureFrame({
             <tbody>
               {table.rows.map((row, i) => (
                 <tr key={i}>
-                  {row.map((cell, j) => (
-                    <td key={j}>{cell ?? "–"}</td>
-                  ))}
+                  {row.map((cell, j) =>
+                    j === 0 && table.pick ? (
+                      <td key={j}>
+                        <button className="row-pick" aria-label={table.pick.label(row)} onClick={() => table.pick?.onPick(row)}>
+                          {cell ?? "–"}
+                        </button>
+                      </td>
+                    ) : (
+                      <td key={j}>{cell ?? "–"}</td>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>

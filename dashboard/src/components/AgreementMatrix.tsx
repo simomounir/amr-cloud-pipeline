@@ -13,13 +13,15 @@ export function AgreementMatrix({ agreement, referenceName, theme }: { agreement
     if (!agreement) return null;
     const extra = sortCombos(agreement.family_matrix.flatMap((c) => [c.ours, c.reference]).filter((f) => !FAMILY_ORDER.includes(f)));
     const domain = [...FAMILY_ORDER, ...extra];
+    const max = Math.max(1, ...agreement.family_matrix.map((c) => c.genomes));
+    // The fill follows a sqrt scale, so the text colour switches on the scaled value, not the raw count.
     return {
       marginLeft: 100,
       marginBottom: 60,
       height: 80 + domain.length * 36,
       x: { domain, label: `${referenceName} call`, tickRotate: -30 },
       y: { domain, label: "Our call" },
-      color: { type: "sqrt", domain: [0, Math.max(1, ...agreement.family_matrix.map((c) => c.genomes))], range: SEQUENTIAL[theme] },
+      color: { type: "sqrt", domain: [0, max], range: SEQUENTIAL[theme] },
       marks: [
         Plot.cell(agreement.family_matrix, {
           x: "reference",
@@ -35,7 +37,7 @@ export function AgreementMatrix({ agreement, referenceName, theme }: { agreement
           x: "reference",
           y: "ours",
           text: "genomes",
-          fill: (d: Cell) => (d.genomes > 0.5 * Math.max(...agreement.family_matrix.map((c) => c.genomes)) ? (theme === "light" ? "#ffffff" : "#0f1419") : "var(--ink)"),
+          fill: (d: Cell) => (Math.sqrt(d.genomes / max) > 0.5 ? (theme === "light" ? "#ffffff" : "#0f1419") : "var(--ink)"),
           pointerEvents: "none",
         }),
       ],
