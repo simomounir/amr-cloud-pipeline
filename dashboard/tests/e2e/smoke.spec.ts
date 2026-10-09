@@ -20,6 +20,8 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   );
   expect(text.trim().split("\n")).toHaveLength(3);
   await expect(page.getByText("Public data; demonstrates a method, not surveillance findings.")).toBeVisible();
+  // F7's analysis failed: it is counted in the footer, not in any chart or table.
+  await expect(page.getByTestId("footer-counts")).toHaveText("6 isolates analysed · 1 failed analysis");
 });
 
 test("timeline axis says it counts per family", async ({ page }) => {

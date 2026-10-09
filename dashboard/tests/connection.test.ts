@@ -6,7 +6,7 @@ describe("connection", () => {
   it("reads the fixture tables with plain JS numbers", async () => {
     const conn = await fixtureConnection();
     const rows = await conn.query<{ n: number }>("SELECT count(*)::INTEGER AS n FROM samples");
-    expect(rows).toEqual([{ n: 6 }]);
+    expect(rows).toEqual([{ n: 7 }]); // F1-F6 analysed, F7 failed
   });
 
   it("binds parameters", async () => {
