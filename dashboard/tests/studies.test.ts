@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { loadStudies, loadStudyInfo } from "../src/data/studies";
-import { baseViewsSql } from "../src/data/tables";
+import { baseViewsSql, isParquetAt } from "../src/data/tables";
 
 const DATA = new URL("./fixtures/data/", import.meta.url);
 const fileFetch = (async (url: string | URL) => {
@@ -27,5 +27,19 @@ describe("studies", () => {
   });
   it("refuses study names that are not slugs", () => {
     expect(() => baseViewsSql(["ok", "x'); DROP"], (s, t) => `${s}/${t}`)).toThrow(/study name/);
+  });
+});
+
+describe("isParquetAt", () => {
+  const reply = (body: string, status = 200) => (async () => new Response(body, { status })) as unknown as typeof fetch;
+  it("accepts a Parquet body", async () => {
+    expect(await isParquetAt("x", reply("PAR1\u0000\u0001"))).toBe(true);
+  });
+  it("rejects an HTML page served with 200", async () => {
+    expect(await isParquetAt("x", reply("<!doctype html>"))).toBe(false);
+  });
+  it("rejects a 404 and a network error", async () => {
+    expect(await isParquetAt("x", reply("PAR1", 404))).toBe(false);
+    expect(await isParquetAt("x", (async () => { throw new Error("offline"); }) as unknown as typeof fetch)).toBe(false);
   });
 });

@@ -23,3 +23,15 @@ export function baseViewsSql(
     return `CREATE OR REPLACE VIEW ${table} AS ${parts.join(" UNION ALL BY NAME ")}`;
   });
 }
+
+/** True when `url` serves a Parquet file (first bytes "PAR1"); a 404 or an HTML page at 200 is not. */
+export async function isParquetAt(url: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const response = await fetchFn(url, { headers: { Range: "bytes=0-3" } });
+    if (!response.ok) return false;
+    const head = new Uint8Array(await response.arrayBuffer()).slice(0, 4);
+    return new TextDecoder().decode(head) === "PAR1";
+  } catch {
+    return false;
+  }
+}

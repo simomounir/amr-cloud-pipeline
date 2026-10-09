@@ -3,7 +3,7 @@ import type { Connection, Row } from "./connection";
 import { DashboardError, loadManifest, type Manifest } from "./manifest";
 import { type AnalysisCounts, analysisCounts } from "./queries";
 import { loadStudies, loadStudyInfo, type StudyEntry, type StudyInfo } from "./studies";
-import { BASE_TABLES, baseViewsSql } from "./tables";
+import { BASE_TABLES, baseViewsSql, isParquetAt } from "./tables";
 import { createViews } from "./views";
 
 function wasmConnection(raw: duckdb.AsyncDuckDBConnection): Connection {
@@ -34,14 +34,6 @@ export interface DashboardDb {
   counts: Record<string, AnalysisCounts>;
 }
 
-async function exists(url: string): Promise<boolean> {
-  try {
-    return (await fetch(url, { method: "HEAD" })).ok;
-  } catch {
-    return false;
-  }
-}
-
 export async function openDashboardDb(dataUrl: string): Promise<DashboardDb> {
   if (typeof WebAssembly === "undefined") throw new DashboardError("This dashboard needs a current browser (WebAssembly).");
   const listed = await loadStudies(dataUrl);
@@ -69,7 +61,7 @@ export async function openDashboardDb(dataUrl: string): Promise<DashboardDb> {
     for (const table of BASE_TABLES) {
       const url = new URL(`${study}/${table}.parquet`, dataUrl).href;
       if (table === "cohort") {
-        if (!(await exists(url))) continue;
+        if (!(await isParquetAt(url))) continue;
         withCohort.add(study);
       }
       await db.registerFileURL(`${study}__${table}.parquet`, url, duckdb.DuckDBDataProtocol.HTTP, false);

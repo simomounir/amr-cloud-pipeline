@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
+import { baseViewsSql } from "../src/data/tables";
 import { createViews } from "../src/data/views";
-import { fixtureConnection } from "./nodeConnection";
+import { emptyConnection, fixtureConnection } from "./nodeConnection";
 
 describe("views", () => {
   it("classifies acquired carbapenemases by family and ignores point mutations", async () => {
@@ -57,5 +59,35 @@ describe("views", () => {
     expect(f4).toEqual({ collection_year: 2016, family_list: ["none"], family_combo: "none" });
     const [g1] = await conn.query("SELECT clone, period FROM isolates WHERE study='study-b' AND sample='G1'");
     expect(g1).toEqual({ clone: null, period: null }); // study without cohort.csv still works
+  });
+});
+
+describe("studies without a cohort file", () => {
+  const FIXTURE = fileURLToPath(new URL("./fixtures/data/", import.meta.url));
+  async function connectWith(hasCohort: (study: string) => boolean) {
+    const conn = await emptyConnection();
+    for (const sql of baseViewsSql(["study-a", "study-b"], (s, t) => `${FIXTURE}${s}/${t}.parquet`, hasCohort)) {
+      await conn.query(sql);
+    }
+    await createViews(conn);
+    return conn;
+  }
+
+  it("keeps the other study's clone and period when one study has no cohort", async () => {
+    const conn = await connectWith((s) => s === "study-a");
+    const rows = await conn.query("SELECT study, sample, clone, period FROM isolates WHERE sample IN ('F3','G1') ORDER BY study, sample");
+    expect(rows).toEqual([
+      { study: "study-a", sample: "F3", clone: "ST147", period: "2018 or later" },
+      { study: "study-b", sample: "G1", clone: null, period: null },
+    ]);
+    expect(await conn.query("SELECT count(*)::INTEGER AS n FROM isolates")).toEqual([{ n: 8 }]);
+  });
+
+  it("falls back to an empty cohort view when no study has one", async () => {
+    const conn = await connectWith(() => false);
+    expect(await conn.query("SELECT count(*)::INTEGER AS n FROM cohort")).toEqual([{ n: 0 }]);
+    const rows = await conn.query("SELECT clone, period, collection_year FROM isolates WHERE study = 'study-a' AND sample = 'F4'");
+    expect(rows).toEqual([{ clone: null, period: null, collection_year: null }]);
+    expect(await conn.query("SELECT count(*)::INTEGER AS n FROM isolates")).toEqual([{ n: 8 }]);
   });
 });
