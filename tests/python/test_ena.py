@@ -45,6 +45,14 @@ def test_single_run_becomes_samplesheet_row():
     assert row["organism"] == KP
     assert row["country"] == "USA: Houston"
     assert row["collection_date"] == "2014-09-28"
+    # ENA's MD5s, in mate order, so each download can be checked.
+    assert row["md5_1"] == "6c0a2255502389c224b6b50d3156d5ee"
+    assert row["md5_2"] == "4c2d226a8c644d027c1b0059cc454a7b"
+
+
+def test_md5_is_empty_when_ena_has_none():
+    rows, _ = fetch_samples(["PRJNA1001661"], KP, get=fixture_get)
+    assert {r["md5_1"] for r in rows} == {""} and {r["md5_2"] for r in rows} == {""}
 
 
 def test_study_expands_to_all_its_runs():

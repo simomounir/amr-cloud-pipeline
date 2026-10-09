@@ -82,6 +82,22 @@
                     "string",
                     "number"
                 ]
+            },
+            "md5_1": {
+                "type": "string",
+                "pattern": "^([0-9a-f]{32})?$",
+                "errorMessage": "md5_1 must be an MD5 hex digest (or empty)",
+                "meta": [
+                    "md5_1"
+                ]
+            },
+            "md5_2": {
+                "type": "string",
+                "pattern": "^([0-9a-f]{32})?$",
+                "errorMessage": "md5_2 must be an MD5 hex digest (or empty)",
+                "meta": [
+                    "md5_2"
+                ]
             }
         },
         "required": [

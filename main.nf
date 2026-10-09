@@ -5,10 +5,13 @@ include { ISOLATE } from './workflows/isolate'
 
 // Relative FASTQ paths resolve against the samplesheet's folder, not the launch folder.
 // Local files are checked here so a typo fails before any process runs.
+// Remote URLs stay strings: each sample's FETCH_READS task downloads them (see ISOLATE).
 def resolveFastq(value, samplesheetDir) {
-    def remote = value.contains('://')
-    def path = remote || value.startsWith('/') || value.startsWith('~') ? file(value) : samplesheetDir.resolve(value)
-    if (!remote && !path.exists()) {
+    if (value.contains('://')) {
+        return value
+    }
+    def path = value.startsWith('/') || value.startsWith('~') ? file(value) : samplesheetDir.resolve(value)
+    if (!path.exists()) {
         error("FASTQ file not found: ${value} (looked for ${path})")
     }
     return path

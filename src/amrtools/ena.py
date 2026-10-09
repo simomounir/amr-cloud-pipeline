@@ -14,13 +14,18 @@ from amrtools.errors import InputFormatError
 FILEREPORT = "https://www.ebi.ac.uk/ena/portal/api/filereport"
 ENA_FIELDS = (
     "run_accession", "sample_accession", "study_accession", "instrument_platform",
-    "library_layout", "fastq_ftp", "collection_date", "country", "isolation_source", "host",
+    "library_layout", "fastq_ftp", "fastq_md5", "collection_date", "country",
+    "isolation_source", "host",
 )  # fmt: skip
 METADATA_COLUMNS = [
     "run_accession", "sample_accession", "study_accession",
     "collection_date", "country", "isolation_source", "host",
 ]  # fmt: skip
-SAMPLESHEET_COLUMNS = ["sample", "fastq_1", "fastq_2", "sample_type", "organism"] + METADATA_COLUMNS
+SAMPLESHEET_COLUMNS = (
+    ["sample", "fastq_1", "fastq_2", "sample_type", "organism"]
+    + METADATA_COLUMNS
+    + ["md5_1", "md5_2"]
+)
 
 
 class EnaError(InputFormatError):
@@ -66,6 +71,15 @@ def _mates(run: dict[str, str]) -> tuple[list[str], list[str]]:
     return mate1, mate2
 
 
+def _md5s(run: dict[str, str]) -> dict[str, str]:
+    """ENA lists one MD5 per file in fastq_ftp order; empty when it has none."""
+    files = [f for f in run.get("fastq_ftp", "").split(";") if f]
+    sums = run.get("fastq_md5", "").split(";")
+    by_file = dict(zip(files, sums, strict=False)) if len(sums) == len(files) else {}
+    (mate1,), (mate2,) = _mates(run)
+    return {"md5_1": by_file.get(mate1, ""), "md5_2": by_file.get(mate2, "")}
+
+
 def _skip_reason(run: dict[str, str]) -> str | None:
     if run["instrument_platform"] != "ILLUMINA":
         return f"platform {run['instrument_platform']}"
@@ -101,6 +115,7 @@ def fetch_samples(accessions: list[str], organism: str, get=http_get):
                     "organism": organism,
                 }
                 | {column: run.get(column, "") for column in METADATA_COLUMNS}
+                | _md5s(run)
             )
     return rows, skipped
 

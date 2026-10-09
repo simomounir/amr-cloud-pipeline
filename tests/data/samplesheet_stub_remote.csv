@@ -1,0 +1,4 @@
+sample,fastq_1,fastq_2,sample_type,organism,md5_1,md5_2
+stub_b,https://reads.invalid/stub_b_1.fastq.gz,https://reads.invalid/stub_b_2.fastq.gz,isolate,Klebsiella_pneumoniae,,
+stub_a,https://reads.invalid/stub_a_1.fastq.gz,https://reads.invalid/stub_a_2.fastq.gz,isolate,Klebsiella_pneumoniae,6c0a2255502389c224b6b50d3156d5ee,4c2d226a8c644d027c1b0059cc454a7b
+stub_c,https://reads.invalid/stub_c_1.fastq.gz,https://reads.invalid/stub_c_2.fastq.gz,isolate,Klebsiella_pneumoniae,,

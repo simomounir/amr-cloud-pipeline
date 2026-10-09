@@ -2,7 +2,7 @@ import amrtools
 
 
 def test_package_version():
-    assert amrtools.__version__ == "0.4.0"
+    assert amrtools.__version__ == "0.5.0"
 
 
 def test_amrtools_image_tag_matches_package_version():
