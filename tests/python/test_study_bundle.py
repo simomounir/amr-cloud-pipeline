@@ -146,3 +146,20 @@ def test_cli(tmp_path):
             "--out", str(out)]  # fmt: skip
     assert main(args) == 0
     assert (out / "study.json").exists() and (out / "cohort.parquet").exists()
+
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def test_every_study_story_parses_and_names_known_figures():
+    from amrtools.study import FIGURES, read_study_yaml
+
+    for story in sorted((REPO / "studies").glob("*/story.md")):
+        parsed = parse_story(story.read_text())
+        assert parsed["title"] and parsed["question"] and parsed["background"], story
+        assert all(f["figure"] in (*FIGURES, None) for f in parsed["findings"]), story
+        settings = read_study_yaml(story.parent / "study.yaml")
+        if (story.parent / "cohort.csv").exists() and settings.get("reference_name"):
+            header = (story.parent / "cohort.csv").read_text().splitlines()[0].split(",")
+            assert settings["reference_st_column"] in header, story
+    assert (REPO / "studies" / "carbapenemase-clones" / "story.md").exists()
