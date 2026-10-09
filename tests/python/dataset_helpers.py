@@ -18,7 +18,8 @@ def _base(sample, run_id, started):
 
 def sample_record(sample, run_id="r1", started=T1, **overrides):
     record = dict.fromkeys(SAMPLES.names) | _base(sample, run_id, started)
-    record |= {"collection_date_precision": "missing", "source_category": "unknown"}
+    record |= {"collection_date_precision": "missing", "source_category": "unknown",
+               "analysis_status": "complete"}  # fmt: skip
     return record | overrides
 
 

@@ -10,12 +10,13 @@ import type { Connection } from "./data/connection";
 import { openDashboardDb } from "./data/db";
 import { EMPTY_FILTERS } from "./data/filters";
 import type { Manifest } from "./data/manifest";
+import type { AnalysisCounts } from "./data/queries";
 import { useDashboard } from "./useDashboard";
 
 const DATA_URL = new URL("data/", document.baseURI).href;
 
 export function App() {
-  const [db, setDb] = useState<{ conn: Connection; manifest: Manifest; tag: string }>();
+  const [db, setDb] = useState<{ conn: Connection; manifest: Manifest; tag: string; counts: AnalysisCounts }>();
   const [fatal, setFatal] = useState<string>();
   useEffect(() => {
     openDashboardDb(DATA_URL).then(setDb, (e: Error) => setFatal(e.message));
@@ -76,7 +77,7 @@ export function App() {
           </main>
         </div>
       )}
-      {db && <Footer manifest={db.manifest} tag={db.tag} />}
+      {db && <Footer manifest={db.manifest} tag={db.tag} counts={db.counts} />}
     </div>
   );
 }

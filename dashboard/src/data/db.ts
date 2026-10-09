@@ -1,6 +1,7 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 import type { Connection, Row } from "./connection";
 import { DashboardError, loadManifest, type Manifest } from "./manifest";
+import { type AnalysisCounts, analysisCounts } from "./queries";
 import { createViews } from "./views";
 
 const TABLES = ["samples", "amr_genes", "run_summary"] as const;
@@ -24,7 +25,9 @@ function wasmConnection(raw: duckdb.AsyncDuckDBConnection): Connection {
   };
 }
 
-export async function openDashboardDb(baseUrl: string): Promise<{ conn: Connection; manifest: Manifest; tag: string }> {
+export async function openDashboardDb(
+  baseUrl: string,
+): Promise<{ conn: Connection; manifest: Manifest; tag: string; counts: AnalysisCounts }> {
   if (typeof WebAssembly === "undefined") throw new DashboardError("This dashboard needs a current browser (WebAssembly).");
   const manifest = await loadManifest(baseUrl);
   const tag = await fetch(new URL("TAG", baseUrl))
@@ -44,5 +47,5 @@ export async function openDashboardDb(baseUrl: string): Promise<{ conn: Connecti
     await conn.query(`CREATE VIEW ${table} AS SELECT * FROM read_parquet('${table}.parquet')`);
   }
   await createViews(conn);
-  return { conn, manifest, tag };
+  return { conn, manifest, tag, counts: await analysisCounts(conn) };
 }

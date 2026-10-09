@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Connection } from "../src/data/connection";
 import { EMPTY_FILTERS } from "../src/data/filters";
-import { headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
+import { analysisCounts, headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
 import { createViews } from "../src/data/views";
 import { fixtureConnection } from "./nodeConnection";
 
@@ -115,5 +115,11 @@ describe("filter options", () => {
 
   it("year bounds cover all isolates", async () => {
     expect(await yearBounds(conn)).toEqual({ min: 2018, max: 2021 });
+  });
+});
+
+describe("analysisCounts", () => {
+  it("counts analysed isolates and those whose analysis failed (no run_summary row)", async () => {
+    expect(await analysisCounts(conn)).toEqual({ analysed: 6, failed: 1 });
   });
 });

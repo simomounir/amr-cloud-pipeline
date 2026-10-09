@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pyarrow as pa
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 SCHEMA_MAJOR = 1
 
 SOURCE_CATEGORIES = (
@@ -14,6 +14,7 @@ SOURCE_CATEGORIES = (
 )  # fmt: skip
 DATE_PRECISIONS = ("day", "month", "year", "missing")
 QC_STATUSES = ("pass", "warn")
+ANALYSIS_STATUSES = ("complete", "failed")
 
 TIMESTAMP = pa.timestamp("us", tz="UTC")
 
@@ -55,6 +56,12 @@ SAMPLES = pa.schema(
         _field("isolation_source_raw", pa.string(), True, "Isolation source as submitted"),
         _field("source_category", pa.string(), False, "Cleaned isolation source category"),
         _field("host", pa.string(), True, "Host organism"),
+        _field(
+            "analysis_status",
+            pa.string(),
+            False,
+            "complete (has a run_summary row) or failed (a pipeline step failed)",
+        ),
     ]
     + _run()
 )
@@ -107,6 +114,7 @@ ALLOWED_VALUES = {
     "samples": {
         "source_category": SOURCE_CATEGORIES,
         "collection_date_precision": DATE_PRECISIONS,
+        "analysis_status": ANALYSIS_STATUSES,
     },
     "run_summary": {"qc_status": QC_STATUSES},
 }

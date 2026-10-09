@@ -7,7 +7,7 @@ identity, short-lived compute. Between runs only storage costs anything (pennies
 |---|---|---|
 | `bootstrap/` | S3 bucket `amr-tfstate-<account>` holding the other roots' state (versioned, encrypted, private) | created once, never destroyed |
 | `platform/` | S3 bucket `amr-pipeline-<account>` with its protections and lifecycle; IAM roles `amr-pipeline-runner`, `amr-compute-deployer`, `amr-batch-instance`, `amr-batch-job`; GitHub OIDC provider | stays up between runs |
-| `compute/` | VPC (public subnets, no NAT), AWS Batch spot compute (0–32 vCPU), job queue, log group, smoke job (no IAM) | apply → run → destroy |
+| `compute/` | VPC (public subnets, no NAT), AWS Batch spot compute (0–96 vCPU), job queue, log group, smoke job (no IAM) | apply → run → destroy |
 
 Budgets (`zero-spend`, `monthly-cap-25`) live outside Terraform so nothing here can remove them.
 Destroying `compute/` never touches the bucket or the runner role, so results stay protected
@@ -19,7 +19,7 @@ and GitHub can always assume the runner role to start the next run.
 - **No NAT gateway** (it costs ~$30/month even idle). Instances get public IPs to reach ENA
   and container registries; the security group allows no inbound traffic.
 - **Batch** is spot only (`SPOT_PRICE_CAPACITY_OPTIMIZED`), x86 families c6i/c6a/c7i/m6i/m6a,
-  min 0 vCPU (nothing runs at idle), max `var.max_vcpus` (default 32) as a burn-rate cap.
+  min 0 vCPU (nothing runs at idle), max `var.max_vcpus` (default 96, the spot quota) as a burn-rate cap.
   Hosts use the ECS Amazon Linux 2023 image with a 100 GB disk and a self-contained AWS CLI
   (Miniforge + conda `awscli`) installed at boot in `/opt/aws-cli`. Nextflow mounts it into every
   task container to stage files; the official AWS CLI build fails in minimal images (no `libz`). Instance metadata is limited to
@@ -34,7 +34,7 @@ and GitHub can always assume the runner role to start the next run.
   named `amr-*` and the `/amr/batch` log group. It has no IAM write permission at all: the
   instance and job roles live in platform, and it may only hand those two to Batch
   (`iam:PassRole`). So a compromised workflow cannot create a role that outlives the run.
-  The 32 vCPU cap is a Terraform setting, not an IAM limit; the budgets are the hard stop.
+  The 96 vCPU cap is a Terraform setting (and the spot quota), not an IAM limit; the budgets are the hard stop.
 - **Boot script fails closed**: if installing the AWS CLI fails, the host shuts down and Batch
   replaces it, instead of every job on it failing.
 
@@ -83,12 +83,24 @@ cannot delete and which costs nothing.
 
 ```bash
 AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <samplesheet.csv> [--profile test]
+AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --resume <run_id>   # within 7 days
 ```
 
 Applies `compute`, makes sure the AMRFinderPlus database is in `s3://<bucket>/refs/` (built and
 uploaded once), runs Nextflow on this machine with every task on Batch spot, copies the results
 to `runs/<study>/<run>/` and validates them, destroys `compute`, then prices the run's instances
 (`cost.json`). Results stay in `s3://<bucket>/results/<study>/<run>/`.
+
+**Failed samples.** A per-sample step that fails is retried once (out-of-memory: twice, with
+more memory), then that sample is skipped and recorded as `failed` in `samples.analysis_status`.
+The run lists them (`amrtools run-status`); if more than 25% failed, the problem is the run, not
+the samples, so the script exits non-zero and writes no `_SUCCESS`.
+
+**Resume.** Each run saves its samplesheet and Nextflow session id next to its results, and
+Nextflow's cache in `s3://<bucket>/cache/<study>/<run>/` (Nextflow's cloud cache), so a run cut
+short (timeout, cancel, spot shortage) resumes from any machine with `--resume <run_id>`, or
+from GitHub with the Cloud run input `resume_run_id`. Finished tasks are reused; `work/` and
+`cache/` expire after 7 days.
 
 Nextflow runs as `amr-pipeline-runner`. A role assumed from an `aws login` session counts as role
 chaining (1-hour cap), so the script gives Nextflow a temporary AWS config whose
@@ -126,7 +138,7 @@ before upload. Only `cloud-run.yml` and `janitor.yml` may request an OIDC token 
 every workflow), because AWS trusts any job on `main` of this repository.
 
 Safety nets: one cloud run at a time (`concurrency`), a 5.5-hour job limit (GitHub's limit is 6 h),
-`max_isolates` per study (at least 1), the 32 vCPU cap, budgets, and the daily **Janitor**
+`max_isolates` per study (at least 1), the 96 vCPU cap (= the account's spot vCPU quota), budgets, and the daily **Janitor**
 workflow. The cleanup step destroys compute only if this run created it (a local run in progress
 is left alone) and releases a Terraform lock left by a cancel (`destroy-compute.sh`). The Janitor
 destroys compute (or a leftover project VPC) that changed over 6 hours ago while no Cloud run is

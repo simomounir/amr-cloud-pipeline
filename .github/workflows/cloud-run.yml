@@ -14,6 +14,10 @@ on:
         description: "Optional lower cap on isolates (never above the study's max_isolates)"
         required: false
         default: ""
+      resume_run_id:
+        description: "Optional: resume this earlier run of the study (e.g. 20261009T002544Z, within 7 days)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -75,6 +79,7 @@ jobs:
           echo "Study $STUDY: up to $max isolates of $organism" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Samplesheet from ENA
+        if: inputs.resume_run_id == ''
         env:
           STUDY: ${{ inputs.study }}
           ORGANISM: ${{ steps.study.outputs.organism }}
@@ -110,10 +115,17 @@ jobs:
           RUNNER_AWS_SECRET_ACCESS_KEY: ${{ steps.runner.outputs.aws-secret-access-key }}
           RUNNER_AWS_SESSION_TOKEN: ${{ steps.runner.outputs.aws-session-token }}
           STUDY: ${{ inputs.study }}
+          RESUME: ${{ inputs.resume_run_id }}
           AMR_COMPUTE_MARKER: ${{ runner.temp }}/compute-owned
         run: |
-          infra/scripts/run-on-batch.sh --ci --study "$STUDY" --input input/samples.csv \
-            --max-samples "${{ steps.study.outputs.max }}"
+          if [ -n "$RESUME" ]; then
+            # A resumed run reuses its own samplesheet (saved in S3), so ENA is not asked again.
+            [[ "$RESUME" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "::error::resume_run_id looks like 20261009T002544Z"; exit 1; }
+            infra/scripts/run-on-batch.sh --ci --study "$STUDY" --resume "$RESUME"
+          else
+            infra/scripts/run-on-batch.sh --ci --study "$STUDY" --input input/samples.csv \
+              --max-samples "${{ steps.study.outputs.max }}"
+          fi
 
       # The repository is public, so artifacts are too: keep the account ID out of them.
       - name: Remove the account ID from the run files

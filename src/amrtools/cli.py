@@ -72,6 +72,10 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--outdir", type=Path, required=True)
     export.add_argument("--samples-tsv", type=Path)
 
+    status = commands.add_parser("run-status", help="report failed samples of a run")
+    status.add_argument("directory", type=Path)
+    status.add_argument("--max-failed-fraction", type=float, default=0.25)
+
     build = commands.add_parser("build-dataset", help="combine run folders into one dataset")
     build.add_argument("inputs", type=Path, nargs="+")
     build.add_argument("--out", type=Path, required=True)
@@ -162,6 +166,18 @@ def _run_export(args: argparse.Namespace) -> None:
     )
 
 
+def _run_status(args: argparse.Namespace) -> None:
+    samples = validate_dir(args.directory)["samples"].select(["sample", "analysis_status"])
+    failed = [r["sample"] for r in samples.to_pylist() if r["analysis_status"] == "failed"]
+    total = samples.num_rows
+    print(f"{len(failed)} of {total} samples failed" + (f": {', '.join(failed)}" if failed else ""))
+    # Many failures point at the run (data source, image, database), not at the samples.
+    if len(failed) == total or len(failed) > args.max_failed_fraction * total:
+        raise InputFormatError(
+            f"more than {args.max_failed_fraction:.0%} of samples failed; not marking this run done"
+        )
+
+
 def _run_build_dataset(args: argparse.Namespace) -> None:
     manifest = build_dataset(args.inputs, args.out)
     rows = ", ".join(f"{name} {entry['rows']}" for name, entry in manifest["tables"].items())
@@ -181,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         "validate": _run_validate,
         "export": _run_export,
         "build-dataset": _run_build_dataset,
+        "run-status": _run_status,
     }
     try:
         commands[args.command](args)

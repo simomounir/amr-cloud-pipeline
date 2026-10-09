@@ -22,7 +22,8 @@ def test_samples_table_columns():
         "sample", "sample_type", "organism", "run_accession", "sample_accession",
         "study_accession", "collection_date_raw", "collection_year", "collection_month",
         "collection_date_precision", "country", "region", "country_raw",
-        "isolation_source_raw", "source_category", "host", "run_id", "run_started_at",
+        "isolation_source_raw", "source_category", "host", "analysis_status", "run_id",
+        "run_started_at",
     ]  # fmt: skip
 
 
@@ -42,7 +43,7 @@ def test_write_table_records_version_and_types(tmp_path):
     record = {name: None for name in SAMPLES.names} | {
         "sample": "S1", "sample_type": "isolate", "organism": "Klebsiella_pneumoniae",
         "collection_year": 2014, "collection_month": 9, "collection_date_precision": "day",
-        "source_category": "urine", "run_id": "r1",
+        "source_category": "urine", "analysis_status": "complete", "run_id": "r1",
         "run_started_at": datetime(2026, 10, 7, tzinfo=UTC),
     }  # fmt: skip
     path = tmp_path / "samples.parquet"

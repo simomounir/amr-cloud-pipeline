@@ -1,0 +1,120 @@
+{
+  "table": "samples",
+  "schema_version": "1.2.0",
+  "columns": [
+    {
+      "name": "sample",
+      "type": "string",
+      "nullable": false,
+      "description": "Sample name from the samplesheet"
+    },
+    {
+      "name": "sample_type",
+      "type": "string",
+      "nullable": false,
+      "description": "isolate (metagenome in a later phase)"
+    },
+    {
+      "name": "organism",
+      "type": "string",
+      "nullable": false,
+      "description": "AMRFinderPlus organism, e.g. Klebsiella_pneumoniae"
+    },
+    {
+      "name": "run_accession",
+      "type": "string",
+      "nullable": true,
+      "description": "ENA/SRA run accession"
+    },
+    {
+      "name": "sample_accession",
+      "type": "string",
+      "nullable": true,
+      "description": "ENA/BioSample accession"
+    },
+    {
+      "name": "study_accession",
+      "type": "string",
+      "nullable": true,
+      "description": "ENA/BioProject accession"
+    },
+    {
+      "name": "collection_date_raw",
+      "type": "string",
+      "nullable": true,
+      "description": "Collection date as submitted"
+    },
+    {
+      "name": "collection_year",
+      "type": "int16",
+      "nullable": true,
+      "description": "Collection year"
+    },
+    {
+      "name": "collection_month",
+      "type": "int8",
+      "nullable": true,
+      "description": "Collection month 1-12"
+    },
+    {
+      "name": "collection_date_precision",
+      "type": "string",
+      "nullable": false,
+      "description": "day, month, year or missing"
+    },
+    {
+      "name": "country",
+      "type": "string",
+      "nullable": true,
+      "description": "Country (ISO 3166 common name)"
+    },
+    {
+      "name": "region",
+      "type": "string",
+      "nullable": true,
+      "description": "Text after the colon in the submitted country"
+    },
+    {
+      "name": "country_raw",
+      "type": "string",
+      "nullable": true,
+      "description": "Country as submitted"
+    },
+    {
+      "name": "isolation_source_raw",
+      "type": "string",
+      "nullable": true,
+      "description": "Isolation source as submitted"
+    },
+    {
+      "name": "source_category",
+      "type": "string",
+      "nullable": false,
+      "description": "Cleaned isolation source category"
+    },
+    {
+      "name": "host",
+      "type": "string",
+      "nullable": true,
+      "description": "Host organism"
+    },
+    {
+      "name": "analysis_status",
+      "type": "string",
+      "nullable": false,
+      "description": "complete (has a run_summary row) or failed (a pipeline step failed)"
+    },
+    {
+      "name": "run_id",
+      "type": "string",
+      "nullable": false,
+      "description": "Nextflow session id of the producing run"
+    },
+    {
+      "name": "run_started_at",
+      "type": "timestamp[us, tz=UTC]",
+      "nullable": false,
+      "description": "Start time of the producing run (UTC)"
+    }
+  ]
+}

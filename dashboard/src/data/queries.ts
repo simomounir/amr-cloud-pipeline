@@ -77,6 +77,21 @@ export function options(conn: Connection, filters: Filters, key: ListFilter): Pr
   return run<OptionRow>(conn, optionsSql.replace("{{column}}", OPTION_COLUMNS[key]), filters, key);
 }
 
+export interface AnalysisCounts {
+  analysed: number;
+  failed: number;
+}
+
+// A sample whose analysis failed has metadata but no run_summary row (schema 1.2.0 also marks it
+// in samples.analysis_status; counting this way works for older datasets too).
+export async function analysisCounts(conn: Connection): Promise<AnalysisCounts> {
+  const [row] = await conn.query<{ analysed: number; failed: number }>(
+    `SELECT (SELECT count(*) FROM run_summary)::INTEGER AS analysed,
+            ((SELECT count(*) FROM samples) - (SELECT count(*) FROM run_summary))::INTEGER AS failed`,
+  );
+  return { analysed: row.analysed, failed: row.failed };
+}
+
 export async function yearBounds(conn: Connection): Promise<{ min: number | null; max: number | null }> {
   const [row] = await conn.query<{ min: number | null; max: number | null }>(yearsSql);
   return row;

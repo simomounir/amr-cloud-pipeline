@@ -1,5 +1,6 @@
-"""Write the dashboard's fixture dataset (isolates F1-F6) with amrtools, so it uses the
-real schema. Run from the repo root: .venv/bin/python dashboard/tests/fixtures/make_fixture.py
+"""Write the dashboard's fixture dataset (isolates F1-F6, plus F7 whose analysis failed) with
+amrtools, so it uses the real schema.
+Run from the repo root: .venv/bin/python dashboard/tests/fixtures/make_fixture.py
 """
 
 import shutil
@@ -91,6 +92,12 @@ def main() -> None:
                     drug_subclass=subclass,
                 )
             )
+    # F7: metadata but no results (a pipeline step failed), as schema 1.2.0 records it.
+    samples.append(
+        sample_record("F7", run_id="fx", run_accession="SRR7000000", country="Nigeria",
+                      collection_year=2020, collection_date_precision="year",
+                      source_category="blood", analysis_status="failed")
+    )  # fmt: skip
     write_run(staging, samples, genes, summaries)
     build_dataset([staging], out)
     shutil.rmtree(staging)

@@ -28,6 +28,12 @@ run "bucket_is_private_and_protected" {
     ]) == 7
     error_message = "work/ objects must expire after 7 days."
   }
+  assert {
+    condition = one([
+      for r in aws_s3_bucket_lifecycle_configuration.pipeline.rule : r.expiration[0].days if r.id == "expire-cache"
+    ]) == 7
+    error_message = "cache/ (Nextflow cloud cache) must expire with work/, after 7 days."
+  }
 }
 
 run "runner_is_scoped_to_project_resources" {

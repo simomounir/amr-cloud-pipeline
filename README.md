@@ -27,16 +27,17 @@ Samples failing QC thresholds are flagged `warn` with reasons, never dropped.
 ## Results format
 
 Each run writes versioned Parquet tables to `results/parquet/`; `build-dataset`
-combines runs (newest run wins per sample) into `dataset/` with a `manifest.json`.
+combines runs (per sample, the newest complete result wins; a failed attempt never
+replaces an earlier result) into `dataset/` with a `manifest.json`.
 
 | Table | One row per | Highlights |
 |---|---|---|
-| `samples` | sample | ENA accessions, collection year/month, country, region, isolation source category, host (raw values kept) |
+| `samples` | sample | ENA accessions, collection year/month, country, region, isolation source category, host (raw values kept), `analysis_status` (complete or failed) |
 | `run_summary` | sample | species, ST, scores, QC |
 | `amr_genes` | detected element | gene, drug class, identity, coverage |
 
-Schema v1.0.0 is documented in [schemas/v1.0.0](schemas/v1.0.0). Check any folder with
-`amrtools validate <dir>`.
+The current schema (v1.2.0) is documented in [schemas/v1.2.0](schemas/v1.2.0); older 1.x
+folders are still read. Check any folder with `amrtools validate <dir>`.
 
 ## Run it
 

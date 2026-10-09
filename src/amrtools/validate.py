@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from amrtools.errors import InputFormatError
-from amrtools.schema import ALLOWED_VALUES, SCHEMA_MAJOR, TABLES
+from amrtools.schema import ALLOWED_VALUES, SAMPLES, SCHEMA_MAJOR, TABLES
 
 
 class DatasetError(InputFormatError):
@@ -53,6 +53,36 @@ def _check_schema(path: Path, name: str, table: pa.Table, schema: pa.Schema) -> 
             )
 
 
+def _upgrade(tables: dict[str, pa.Table]) -> None:
+    """Read schema 1.0/1.1 samples tables as 1.2: derive analysis_status from run_summary.
+
+    Those versions stopped the whole run on any failure, so every sample with a summary row
+    completed and any other did not.
+    """
+    samples = tables["samples"]
+    metadata = samples.schema.metadata or {}
+    version = metadata.get(b"schema_version", b"").decode()
+    if "analysis_status" in samples.schema.names or version not in ("1.0.0", "1.1.0"):
+        return
+    done = set(tables["run_summary"].column("sample").to_pylist())
+    status = ["complete" if s in done else "failed" for s in samples.column("sample").to_pylist()]
+    field = SAMPLES.field("analysis_status")
+    upgraded = samples.add_column(SAMPLES.get_field_index(field.name), field, pa.array(status))
+    tables["samples"] = upgraded.replace_schema_metadata(metadata)
+
+
+def _check_status(directory: Path, tables: dict[str, pa.Table]) -> None:
+    summarised = set(tables["run_summary"].column("sample").to_pylist())
+    rows = tables["samples"].select(["sample", "analysis_status"]).to_pylist()
+    for row in rows:
+        if (row["analysis_status"] == "complete") != (row["sample"] in summarised):
+            state = "has" if row["sample"] in summarised else "has no"
+            raise DatasetError(
+                f"{directory / 'samples.parquet'}: sample '{row['sample']}' is "
+                f"{row['analysis_status']} but {state} run_summary row"
+            )
+
+
 def _check_keys(directory: Path, tables: dict[str, pa.Table]) -> None:
     for name in ("samples", "run_summary"):
         counts = Counter(tables[name].column("sample").to_pylist())
@@ -82,13 +112,16 @@ def _check_manifest(directory: Path, tables: dict[str, pa.Table]) -> None:
 def validate_dir(directory: Path) -> dict[str, pa.Table]:
     directory = Path(directory)
     tables = {}
-    for name, schema in TABLES.items():
+    for name in TABLES:
         path = directory / f"{name}.parquet"
         if not path.exists():
             raise DatasetError(f"{path}: missing table file")
         tables[name] = pq.read_table(path)
-        _check_schema(path, name, tables[name], schema)
+    _upgrade(tables)
+    for name, schema in TABLES.items():
+        _check_schema(directory / f"{name}.parquet", name, tables[name], schema)
     _check_keys(directory, tables)
+    _check_status(directory, tables)
     if (directory / "manifest.json").exists():
         _check_manifest(directory, tables)
     return tables

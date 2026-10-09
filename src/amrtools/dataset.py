@@ -20,13 +20,16 @@ MAX_FILE_BYTES = 95 * 1024 * 1024
 def _select_newest(runs: list[dict[str, pa.Table]]) -> dict[str, pa.Table]:
     """Keep each sample's rows from the input with the newest run; later inputs win ties.
 
+    A complete result always beats a failed attempt, whatever their order: a later run that
+    failed on a sample must not erase that sample's earlier results.
     Inputs are compared by position, not run_id: `nextflow -resume` reuses the session id,
     so two batches can share a run_id.
     """
     best: dict[str, tuple] = {}
     for index, run in enumerate(runs):
-        for row in run["samples"].select(["sample", "run_started_at"]).to_pylist():
-            key = (row["run_started_at"], index)
+        columns = ["sample", "analysis_status", "run_started_at"]
+        for row in run["samples"].select(columns).to_pylist():
+            key = (row["analysis_status"] == "complete", row["run_started_at"], index)
             if row["sample"] not in best or key >= best[row["sample"]]:
                 best[row["sample"]] = key
     selected = {}
@@ -34,7 +37,7 @@ def _select_newest(runs: list[dict[str, pa.Table]]) -> dict[str, pa.Table]:
         parts = []
         for index, run in enumerate(runs):
             samples = run[name].column("sample").to_pylist()
-            mask = [best[sample][1] == index for sample in samples]
+            mask = [best[sample][-1] == index for sample in samples]
             parts.append(run[name].filter(pa.array(mask, type=pa.bool_())))
         combined = pa.concat_tables(parts)
         order = pc.sort_indices(combined, sort_keys=[("sample", "ascending")])

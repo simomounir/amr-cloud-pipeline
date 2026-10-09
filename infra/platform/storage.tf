@@ -52,6 +52,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "pipeline" {
       days = 7
     }
   }
+  # Nextflow's cloud cache: what a resumed run needs besides work/, so it expires with it.
+  rule {
+    id     = "expire-cache"
+    status = "Enabled"
+    filter {
+      prefix = "cache/"
+    }
+    expiration {
+      days = 7
+    }
+  }
   rule {
     id     = "abort-incomplete-uploads"
     status = "Enabled"
