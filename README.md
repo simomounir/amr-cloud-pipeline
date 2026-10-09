@@ -2,14 +2,77 @@
 
 [![CI](https://github.com/simomounir/amr-cloud-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/simomounir/amr-cloud-pipeline/actions/workflows/ci.yml)
 
-**Live dashboard:** https://simomounir.github.io/amr-cloud-pipeline/ (public data; demonstrates a method)
+Public *Klebsiella pneumoniae* genomes go through a Nextflow pipeline on AWS Batch spot
+instances, come out as validated, versioned Parquet tables, and are shown as interactive
+study pages that run entirely in the visitor's browser. The same pipeline runs on a laptop,
+in CI and on AWS. Uses public data; results demonstrate a method, not new surveillance findings.
 
-Detects antimicrobial-resistance genes in bacterial isolate genomes. A Nextflow
-pipeline built to run the same way on a laptop, in CI and on AWS Batch.
+**Live site:** https://simomounir.github.io/amr-cloud-pipeline/
 
-> Uses public data. Results demonstrate a method, not new surveillance findings.
+![A study page of the dashboard](docs/images/dashboard-study.png)
 
-## What it does
+Numbers as of study 1 ([carbapenemase clones](studies/carbapenemase-clones/RESULTS.md)):
+
+| Genomes analysed | Cost per genome | Agreement with Pathogenwatch |
+|---|---|---|
+| 152 of 156 selected (4 failed assembly) | $0.031 ($4.76 for the run) | 99% on sequence type, 99% on carbapenemase family |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph GitHub
+    S[studies/&lt;name&gt;<br/>question + cohort] --> CR[Cloud run workflow]
+    CR -- OIDC --> AWS
+    REL[Release<br/>dataset-&lt;study&gt;-date] --> PAGES[Pages build]
+    PIN[dashboard/studies.json] --> PAGES
+  end
+  subgraph AWS["AWS (eu-west-1)"]
+    TF[Terraform<br/>deployer role] --> BATCH[Batch spot<br/>≤ 96 vCPU]
+    NF[Nextflow head<br/>runner role] --> BATCH
+    BATCH <--> S3[(S3 work + results)]
+  end
+  CR --> TF
+  CR --> NF
+  S3 --> CR
+  CR -- artifact --> REL
+  PAGES --> SITE[Static site<br/>DuckDB-WASM in the browser]
+```
+
+Long-lived pieces (state bucket, results bucket, IAM roles, OIDC provider) stay up and cost
+pennies. Compute (VPC, Batch, queue) is created for a run and destroyed after it. Details:
+[infra/README.md](infra/README.md).
+
+### What happens when you click Cloud run
+
+1. **Actions -> Cloud run** takes a study folder name (and optionally a run to resume). The study's
+   `max_isolates` caps the run; nothing processes more than that.
+2. The samplesheet is built from the study's ENA accessions (`amrtools fetch-samples`).
+3. Terraform applies the compute stack as the deployer role (no IAM write permissions).
+4. Nextflow runs on Batch spot as the runner role. Each sample downloads its own reads
+   (size and MD5 checked, retried), and every step has a time limit and one retry.
+5. Results are validated against the schema, and `_SUCCESS` is written only if at most 25% of
+   samples failed.
+6. Compute is destroyed even if the run failed, then the run is priced (`cost.json`) and
+   results, report and cost are uploaded as a workflow artifact. A daily **Janitor** workflow
+   destroys leftover compute and opens an issue.
+
+Publishing is a separate, deliberate step: `scripts/publish-dataset.sh --study <name>` builds
+the Release and pins it in `dashboard/studies.json`; merging that commit deploys the site.
+
+## Studies
+
+| Study | Question | Genomes (analysed / selected) | Cost | Headline finding | Results |
+|---|---|---|---|---|---|
+| `carbapenemase-clones` | Which carbapenemase families travel with ST11, ST147, ST258/512 and ST307, and how has that changed since 2012? | 152 / 156 | $4.76 ($0.031 per genome) | ST258/512 is always KPC. ST147 shifted to NDM and OXA-48-like (no carbapenemase 46% to 8%). ST307 is gaining carbapenemases (8% to 46%). | [RESULTS.md](studies/carbapenemase-clones/RESULTS.md) |
+
+The 156 genomes were selected from AMRnet/Pathogenwatch (snapshot 2025-08-05): 55 countries,
+1999-2022. The study's release is `dataset-carbapenemase-clones-2026-10-09`. A study is a
+question plus a list of ENA accessions, see [studies/README.md](studies/README.md). The
+interpretation text on each study page is hand-written in `studies/<name>/story.md`; the site
+never generates it.
+
+## What the pipeline does
 
 ```
 reads (Illumina, paired) → fastp → Shovill → AMRFinderPlus ─┐
@@ -24,8 +87,6 @@ reads (Illumina, paired) → fastp → Shovill → AMRFinderPlus ─┐
 
 Samples failing QC thresholds are flagged `warn` with reasons, never dropped.
 
-## Results format
-
 Each run writes versioned Parquet tables to `results/parquet/`; `build-dataset`
 combines runs (per sample, the newest complete result wins; a failed attempt never
 replaces an earlier result) into `dataset/` with a `manifest.json`.
@@ -38,6 +99,36 @@ replaces an earlier result) into `dataset/` with a `manifest.json`.
 
 The current schema (v1.2.0) is documented in [schemas/v1.2.0](schemas/v1.2.0); older 1.x
 folders are still read. Check any folder with `amrtools validate <dir>`.
+
+## Engineering
+
+**Tests** (see also [tests/data/README.md](tests/data/README.md)):
+
+| Layer | Command | Runs in CI |
+|---|---|---|
+| Python unit tests | `pytest` | every push |
+| Pipeline wiring (stub) and input validation | `nf-test test tests/ --tag stub,validation --profile test,docker` | every push |
+| Full tiny-dataset run | `nf-test test tests/ --tag full --profile test,docker` | push to main |
+| Dashboard: lint, types, SQL query tests, browser smoke test | `cd dashboard && npm test && npm run e2e` | every PR and push to main |
+
+Infrastructure checks in CI (no AWS credentials): `terraform fmt` and `validate` on every root,
+`terraform test` plan tests with a mocked provider (idle at 0 vCPU, vCPU cap, no inbound access,
+private bucket, scoped IAM), `tflint` and `checkov`. The dashboard also runs vitest unit tests
+and Playwright browser tests. A test checks that only `cloud-run.yml` and `janitor.yml` can
+request an OIDC token.
+
+**Review.** Each branch gets a whole-branch review before it merges, not only per-commit checks.
+
+**Safety nets.** AWS budgets alert at the first cent and at a $25 monthly cap. One cloud run
+at a time. A 96 vCPU cap, a per-study `max_isolates` and a 5.5-hour job limit. A failed-sample
+threshold (over 25% failed means the run fails). Failed samples are retried once and then
+recorded, not hidden. Interrupted runs resume from a saved Nextflow session. A daily Janitor
+destroys compute left over by a crash. Both OIDC roles trust only workflows on `main`.
+
+**Reproducibility.** Tools and container images are pinned. The Miniforge installer used on
+Batch hosts is checked against its SHA-256. Each study's cohort is pinned by checksum, the
+AMRFinderPlus database can be pinned (`--amrfinder_db`), and Parquet tables carry schema
+versions (current: 1.2.0; older 1.x folders are still read).
 
 ## Run it
 
@@ -84,48 +175,46 @@ tar czf amrfinderdb.tar.gz -C "amrfinderdb/$(readlink amrfinderdb/latest)" .
 On Apple Silicon, containers run as `linux/amd64` under emulation: give Docker
 Desktop at least 8 GB of memory and expect slow assemblies.
 
-## Cloud
+### A study on AWS
 
-The same pipeline runs on AWS Batch spot instances, set up with Terraform in [infra/](infra/):
-long-lived storage and identity, short-lived compute that is destroyed after every run (about $0
-while idle). First measured run: **$0.021 per genome**, identical results to local and CI.
-Studies (a question plus a list of ENA accessions, in [studies/](studies/)) run on AWS from the
-GitHub Actions page with one click, using OIDC (no stored AWS keys).
+**Actions -> Cloud run -> Run workflow**, enter the study folder name. Needs the repository
+secrets `AWS_DEPLOYER_ROLE_ARN` and `AWS_RUNNER_ROLE_ARN` and the Terraform stacks in
+[infra/](infra/) set up once. Or locally, with an `aws login` session:
 
-## Dashboard
+```bash
+AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <samplesheet.csv>
+```
 
-A static site on GitHub Pages ([dashboard/](dashboard/)) that loads the `dataset-*` Release
-named in `dashboard/dataset.txt` and runs every query in the visitor's browser with DuckDB-WASM:
-headline numbers, carbapenemase families over time, the most common AMR elements, and
-an isolate table with CSV export. There is no server or database; hosting is free.
+### Publish a study
 
-Datasets are published with `scripts/publish-dataset.sh <run-id> [artifact]` from a workflow
-artifact (a `Seed dataset` artifact or a Cloud run's): it builds and validates the dataset,
-creates the Release and updates `dashboard/dataset.txt`; merging that commit deploys the site.
-(GitHub Pages identifies deployments by commit, so a Release alone would not redeploy.)
+```bash
+scripts/publish-dataset.sh --study <name> <cloud-run-id> cloud-run-<name>-<cloud-run-id>
+```
 
-Live: `dataset-2026-10-09`, study 1 ([studies/carbapenemase-clones](studies/carbapenemase-clones/RESULTS.md)):
-152 genomes of ST11, ST147, ST258/512 and ST307 analysed on AWS for $4.76, with 99% agreement
-with Pathogenwatch on sequence type and carbapenemase family. The first dataset (30 public
-isolates, GitHub Actions) is `dataset-2026-10-08`, see [data/README.md](data/README.md).
+This builds and validates the dataset, creates the Release `dataset-<name>-YYYY-MM-DD` with
+`cohort.parquet` and `study.json` beside the tables, and updates `dashboard/studies.json`.
+Merge that commit to deploy. The dashboard is documented in [dashboard/README.md](dashboard/README.md).
 
-## Tests
+## Repository map
 
-| Layer | Command | Runs in CI |
-|---|---|---|
-| Python unit tests | `pytest` | every push |
-| Pipeline wiring (stub) and input validation | `nf-test test tests/ --tag stub,validation --profile test,docker` | every push |
-| Full tiny-dataset run | `nf-test test tests/ --tag full --profile test,docker` | push to main |
-| Dashboard: lint, types, SQL query tests, browser smoke test | `cd dashboard && npm test && npm run e2e` | every PR and push to main |
-
-Test data: see [tests/data/README.md](tests/data/README.md).
+| Folder | Contents |
+|---|---|
+| `main.nf`, `workflows/`, `modules/`, `conf/` | Nextflow pipeline, per-tool modules and profiles (`docker`, `test`, `awsbatch`) |
+| `src/amrtools/` | Python package: ENA queries, read fetching, parsers, QC, Parquet tables, dataset merge, validation |
+| `schemas/` | Results schema versions (1.0.0 to 1.2.0) |
+| `studies/` | One folder per study: question, accessions, story, results |
+| `infra/` | Terraform (`bootstrap`, `platform`, `compute`) and the run scripts |
+| `dashboard/` | Static React + DuckDB-WASM site |
+| `scripts/` | Release publishing and seed selection |
+| `.github/workflows/` | CI, Cloud run, Janitor, Pages, Seed dataset |
+| `tests/`, `test-data*/` | Python, nf-test and fixture data |
+| `data/` | The first dataset's accession list (see [data/README.md](data/README.md)) |
+| `docs/` | [Project brief](docs/amr-cloud-pipeline-project.md), design specs in `docs/superpowers/specs/`, images |
 
 ## Roadmap
 
-1. Phase 1: local pipeline, tests, CI
-2. Phase 2: versioned Parquet results schema, ENA metadata
-3. **Phase 3:** static dashboard (DuckDB-WASM on GitHub Pages)
-4. **Phase 4:** AWS Batch with Terraform (4a–4d done: account, infrastructure, first cloud run at $0.021/genome, one-click runs from GitHub)
-5. Phase 6: metagenome mode on the same platform
+Done: local pipeline and CI, versioned Parquet schema, static dashboard, AWS Batch with Terraform,
+one-click cloud runs from GitHub, dashboard with study pages, study 1.
 
-Project brief: [docs/amr-cloud-pipeline-project.md](docs/amr-cloud-pipeline-project.md).
+Next: study 3, on convergence of carbapenem resistance and hypervirulence (Kleborate resistance and virulence scores by clone and year). Later: a
+metagenome mode on the same platform. Other species are out of scope for now.
