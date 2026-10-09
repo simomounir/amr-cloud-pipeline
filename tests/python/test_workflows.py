@@ -1,6 +1,7 @@
 """Guards on the GitHub workflows that can reach AWS."""
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -141,3 +142,19 @@ def test_resume_passes_only_the_run_id(tmp_path):
 def test_malformed_resume_id_is_refused(tmp_path):
     proc = _run_step(tmp_path, "latest; rm -rf /")
     assert proc.returncode != 0 and "ARGS" not in proc.stdout
+
+
+def test_site_dataset_is_pinned_in_git():
+    """The deployed dataset comes from dashboard/dataset.txt, so every publish is a commit.
+
+    Pages deployments are identified by commit: a release alone (same commit) redeployed the
+    old site on 2026-10-09.
+    """
+    pinned = (ROOT / "dashboard" / "dataset.txt").read_text().strip()
+    assert re.fullmatch(r"dataset-\d{4}-\d{2}-\d{2}", pinned)
+    pages = _load("pages.yml")
+    assert "release" not in pages[True]  # yaml reads the `on:` key as True
+    assert "dashboard/**" in pages[True]["push"]["paths"]
+    steps = pages["jobs"]["build"]["steps"]
+    script = next(s for s in steps if s.get("name", "").startswith("Download"))
+    assert "dashboard/dataset.txt" in script["run"]
