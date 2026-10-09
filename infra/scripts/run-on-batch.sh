@@ -122,19 +122,10 @@ stop_nextflow() {
     pkill -KILL -f -- "--run_id $run_id" 2> /dev/null || true
 }
 
-# The session id is what `-resume` needs; saved first on exit, before the slow cleanup, so a
-# cancelled GitHub job (killed about 10 s after the cancel) still leaves it behind.
-save_session() {
-    local id
-    id=$(sed -n 's/.*Session UUID: \([0-9a-f-]*\).*/\1/p' "$local_dir/.nextflow.log" 2> /dev/null | head -1)
-    [ -n "$id" ] && echo "$id" | as_runner aws s3 cp - "$results/session-id" --quiet || true
-}
-
 cleanup() {
     local status=$? rc=0
     trap - EXIT
     trap '' INT TERM HUP # never interrupt destroy halfway
-    save_session
     stop_nextflow
     [ -n "${nf_config:-}" ] && rm -f "$nf_config"
     rm -rf "$local_dir/db-build"
@@ -173,7 +164,14 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 
 [ -n "${AMR_COMPUTE_MARKER:-}" ] && touch "$AMR_COMPUTE_MARKER"
+# A new run gets its Nextflow session id now and saves it with the samplesheet before anything
+# starts: a cancelled or timed-out GitHub job is killed within seconds, before any exit handler
+# could save it. Nextflow starts a fresh session under an unknown id given to -resume.
+if [ -z "$session" ]; then
+    session=$(python3 -c 'import uuid; print(uuid.uuid4())')
+fi
 as_runner aws s3 cp "$input" "$results/samplesheet.csv" --quiet
+echo "$session" | as_runner aws s3 cp - "$results/session-id" --quiet
 log "compute: apply"
 "$TF" -chdir="$infra/compute" apply -auto-approve -input=false
 compute_applied=1
@@ -205,7 +203,7 @@ nf_args=(run "$root" -profile "awsbatch$extra_profile" -c batch-role.config
     --outdir "$results"
     -work-dir "s3://$bucket/work/$study/$run_id"
     -with-trace trace.tsv -with-report report.html -ansi-log false)
-[ -n "$session" ] && nf_args+=(-resume "$session")
+nf_args+=(-resume "$session")
 # Cloud cache: the docs ask for a run name and an explicit session id instead of local history.
 export NXF_CLOUDCACHE_PATH="s3://$bucket/cache/$study/$run_id" NXF_IGNORE_RESUME_HISTORY=true
 if [ "$ci" = 1 ]; then

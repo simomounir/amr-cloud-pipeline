@@ -94,3 +94,43 @@ def test_build_dataset_upgrades_v1_1_inputs(tmp_path):
     assert samples.schema.metadata[b"schema_version"] == b"1.2.0"
     assert samples.column("analysis_status").to_pylist() == ["complete"]
     assert pa.types.is_string(samples.schema.field("analysis_status").type)
+
+
+def test_newer_failed_attempt_does_not_replace_an_older_result(tmp_path):
+    from dataset_helpers import T1, T2
+
+    older = write_run(
+        tmp_path / "a",
+        [sample_record("S1", started=T1)],
+        [gene_record("S1", started=T1)],
+        [summary_record("S1", started=T1)],
+    )
+    newer = write_run(
+        tmp_path / "b",
+        [sample_record("S1", run_id="r2", started=T2, analysis_status="failed")],
+        [],
+        [],
+    )
+    build_dataset([older, newer], tmp_path / "ds")
+    tables = validate_dir(tmp_path / "ds")
+    assert tables["samples"].column("analysis_status").to_pylist() == ["complete"]
+    assert tables["run_summary"].num_rows == 1 and tables["amr_genes"].num_rows == 1
+
+
+def test_newer_complete_result_still_wins(tmp_path):
+    from dataset_helpers import T1, T2
+
+    older = write_run(
+        tmp_path / "a",
+        [sample_record("S1", started=T1)],
+        [],
+        [summary_record("S1", started=T1, st="ST11")],
+    )
+    newer = write_run(
+        tmp_path / "b",
+        [sample_record("S1", run_id="r2", started=T2)],
+        [],
+        [summary_record("S1", run_id="r2", started=T2, st="ST147")],
+    )
+    build_dataset([older, newer], tmp_path / "ds")
+    assert validate_dir(tmp_path / "ds")["run_summary"].column("st").to_pylist() == ["ST147"]

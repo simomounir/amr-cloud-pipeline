@@ -6,6 +6,7 @@ puts prepared Parquet results into the fake S3 results folder.
 """
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -63,8 +64,9 @@ FAKE_NF = r"""#!/usr/bin/env bash
   echo "env NXF_CLOUDCACHE_PATH=${NXF_CLOUDCACHE_PATH:-}"
   echo "env NXF_IGNORE_RESUME_HISTORY=${NXF_IGNORE_RESUME_HISTORY:-}"
 } >> "$FAKE_LOG"
-echo "Oct-09 01:21:51.543 [main] DEBUG nextflow.Session - Session UUID: $FAKE_UUID" > .nextflow.log
 outdir=$(printf '%s\n' "$@" | grep -A1 -- '^--outdir$' | tail -1)
+saved="$FAKE_S3/${outdir#s3://}/session-id"
+echo "session saved before start: $(cat "$saved" 2> /dev/null || echo none)" >> "$FAKE_LOG"
 mkdir -p "$FAKE_S3/${outdir#s3://}"
 cp -R "$FAKE_RESULTS/." "$FAKE_S3/${outdir#s3://}/"
 exit "${FAKE_NF_EXIT:-0}"
@@ -151,11 +153,16 @@ def test_new_run_saves_samplesheet_and_session_and_uses_the_cloud_cache(fake):
     run_id = _run_id(proc)
     run = f"results/pytest-flow/{run_id}"
     assert _s3(tmp, f"{run}/samplesheet.csv").read_text() == sheet.read_text()
-    assert _s3(tmp, f"{run}/session-id").read_text().strip() == UUID
+    # The session id is chosen and saved before Nextflow starts: a cancelled or timed-out
+    # GitHub job is killed before any exit handler could save it.
+    session = _s3(tmp, f"{run}/session-id").read_text().strip()
     calls = _calls(tmp)
+    assert re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}", session)
+    assert f"session saved before start: {session}" in calls
+    assert f" -resume {session}" in calls
     assert f"NXF_CLOUDCACHE_PATH=s3://{BUCKET}/cache/pytest-flow/{run_id}" in calls
     assert "NXF_IGNORE_RESUME_HISTORY=true" in calls
-    assert " -name " in calls and " -resume" not in calls
+    assert " -name " in calls
 
 
 def test_resume_reuses_the_run_samplesheet_work_dir_and_session(fake):

@@ -27,7 +27,8 @@ Samples failing QC thresholds are flagged `warn` with reasons, never dropped.
 ## Results format
 
 Each run writes versioned Parquet tables to `results/parquet/`; `build-dataset`
-combines runs (newest run wins per sample) into `dataset/` with a `manifest.json`.
+combines runs (per sample, the newest complete result wins; a failed attempt never
+replaces an earlier result) into `dataset/` with a `manifest.json`.
 
 | Table | One row per | Highlights |
 |---|---|---|
