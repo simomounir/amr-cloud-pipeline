@@ -21,7 +21,9 @@ export function PlotFigure({
     }
     // Plot pins the tooltip on pointerdown (and clears figure.value on the next one), after which pointermove
     // is ignored, so the pinned datum is not the one under the pointer. Remember the datum from `input` events
-    // and stop pointerdown before Plot sees it: the tooltip then always follows the pointer and a click picks it.
+    // and stop a mouse pointerdown before Plot sees it: the tooltip then always follows the pointer and a click
+    // picks it. Plot ignores non-mouse pointerdown itself, and a touch pointer "leaves" on release, before the
+    // click, so touch and pen keep Plot's handling and only a mouse leaving clears the remembered datum.
     const valueOf = () => (figure as unknown as { value?: unknown }).value;
     let pointed: unknown = null;
     const remember = () => {
@@ -30,10 +32,10 @@ export function PlotFigure({
     };
     const unpinned = (event: Event) => {
       remember();
-      event.stopPropagation();
+      if ((event as PointerEvent).pointerType === "mouse") event.stopPropagation();
     };
-    const leave = () => {
-      pointed = null;
+    const leave = (event: Event) => {
+      if ((event as PointerEvent).pointerType === "mouse") pointed = null;
     };
     const click = () => {
       if (onPick && pointed != null) onPick(pointed);
