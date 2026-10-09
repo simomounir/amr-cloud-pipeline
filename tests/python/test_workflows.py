@@ -160,5 +160,8 @@ def test_site_studies_are_pinned_in_git():
     pages = _load("pages.yml")
     assert "release" not in pages[True]  # yaml reads the `on:` key as True
     steps = pages["jobs"]["build"]["steps"]
-    script = next(s for s in steps if s.get("name", "").startswith("Download"))["run"]
+    download = next(s for s in steps if s.get("name", "").startswith("Download"))
+    script = download["run"]
+    assert download["shell"] == "bash"  # bash -eo pipefail: a failing jq in the pipe fails the step
+    assert "map(.study) | length == (unique | length)" in script  # duplicate study names
     assert "dashboard/studies.json" in script and "public/data/$study" in script

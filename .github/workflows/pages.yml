@@ -31,9 +31,12 @@ jobs:
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
       - name: Download the pinned study releases
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          jq -e 'map(.study) | length == (unique | length)' dashboard/studies.json > /dev/null \
+            || { echo "::error::duplicate study names in studies.json"; exit 1; }
           mkdir -p dashboard/public/data
           cp dashboard/studies.json dashboard/public/data/studies.json
           jq -r '.[] | "\(.study) \(.release)"' dashboard/studies.json | while read -r study tag; do
