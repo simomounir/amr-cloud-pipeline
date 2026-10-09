@@ -31,6 +31,7 @@ export interface ElementRow {
   share: number;
 }
 export interface IsolateRow {
+  study: string;
   sample: string;
   run_accession: string | null;
   country: string | null;
@@ -114,6 +115,16 @@ export function periodMix(conn: Connection, filters: Filters): Promise<MixRow[]>
 
 export function countryCounts(conn: Connection, filters: Filters): Promise<CountryRow[]> {
   return run<CountryRow>(conn, countriesSql, filters);
+}
+
+/** Genomes among those the filters select that have no country in their ENA record. */
+export async function noCountryCount(conn: Connection, filters: Filters): Promise<number> {
+  const where = toWhere(filters);
+  const [row] = await conn.query<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM isolates ${where.sql ? `${where.sql} AND` : "WHERE"} country IS NULL`,
+    where.params,
+  );
+  return row.n;
 }
 
 export interface AnalysisCounts {

@@ -1,3 +1,4 @@
+import { costPerGenome, formatDollars } from "../data/format";
 import type { StudyInfo } from "../data/studies";
 
 function median(values: number[]): number | null {
@@ -10,12 +11,12 @@ function median(values: number[]): number | null {
 /** Headline numbers across every study that has a study.json. */
 export function StatTiles({ infos, studyCount }: { infos: StudyInfo[]; studyCount: number }) {
   const genomes = infos.reduce((n, i) => n + i.run.analysed, 0);
-  const cost = median(infos.flatMap((i) => (i.run.cost_per_genome_usd === null ? [] : [i.run.cost_per_genome_usd])));
+  const cost = median(infos.flatMap((i) => costPerGenome(i.run) ?? []));
   const agree = infos.reduce((n, i) => n + (i.agreement?.carbapenemase_family.agree ?? 0), 0);
   const total = infos.reduce((n, i) => n + (i.agreement?.carbapenemase_family.total ?? 0), 0);
   const tiles = [
     { id: "genomes", label: "Genomes analysed", value: genomes.toLocaleString("en-US") },
-    { id: "cost", label: "Cost per genome (median)", value: cost === null ? "n/a" : `$${cost.toFixed(3)}` },
+    { id: "cost", label: "Cost per analysed genome (median)", value: formatDollars(cost) },
     {
       id: "agreement",
       label: "Carbapenemase agreement with references",

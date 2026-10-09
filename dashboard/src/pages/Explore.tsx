@@ -64,7 +64,7 @@ export function Explore({
           {data.elements.data && <TopElements rows={data.elements.data} />}
         </Panel>
         <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
-          {data.isolates.data && <IsolateTable rows={data.isolates.data} />}
+          {data.isolates.data && <IsolateTable rows={data.isolates.data} showStudy />}
         </Panel>
       </main>
     </div>

@@ -9,7 +9,16 @@ import { PlotFigure } from "./PlotFigure";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const land = feature(world as any, (world as any).objects.countries) as unknown as GeoJSON.FeatureCollection;
 
-export function CountryMap({ rows, onPick }: { rows: CountryRow[]; onPick: (country: string) => void }) {
+export function CountryMap({
+  rows,
+  selected = [],
+  onPick,
+}: {
+  rows: CountryRow[];
+  /** Countries currently picked: drawn with an outline, the others dimmed. */
+  selected?: string[];
+  onPick: (country: string) => void;
+}) {
   const { options, missing } = useMemo(() => {
     const byId = new Map(land.features.map((f) => [String(f.id), f]));
     const placed = rows.flatMap((r) => {
@@ -32,9 +41,9 @@ export function CountryMap({ rows, onPick }: { rows: CountryRow[]; onPick: (coun
               geometry: (d: (typeof placed)[number]) => d.feature,
               r: "genomes",
               fill: "var(--accent)",
-              fillOpacity: 0.7,
-              stroke: "var(--surface)",
-              strokeWidth: 2,
+              fillOpacity: (d: (typeof placed)[number]) => (selected.length && !selected.includes(d.country) ? 0.25 : 0.7),
+              stroke: (d: (typeof placed)[number]) => (selected.includes(d.country) ? "var(--ink)" : "var(--surface)"),
+              strokeWidth: (d: (typeof placed)[number]) => (selected.includes(d.country) ? 3 : 2),
               tip: true,
               ariaLabel: (d: (typeof placed)[number]) => d.country,
               title: (d: (typeof placed)[number]) => `${d.country}: ${d.genomes} genomes\nclones: ${d.clones ?? "–"}\ncarbapenemases: ${d.families}`,
@@ -43,13 +52,13 @@ export function CountryMap({ rows, onPick }: { rows: CountryRow[]; onPick: (coun
         ],
       } as Plot.PlotOptions,
     };
-  }, [rows]);
+  }, [rows, selected]);
   const onPickRow = useCallback((d: unknown) => onPick((d as CountryRow).country), [onPick]);
   return (
     <>
       <PlotFigure options={options} summary={`${rows.length} countries`} onPick={onPickRow} />
       {missing.length > 0 && (
-        <p className="note">Not on the map (too small at this scale): {missing.map((m) => `${m.country} (${m.genomes})`).join(", ")}.</p>
+        <p className="note">No map shape for: {missing.map((m) => `${m.country} (${m.genomes})`).join(", ")}.</p>
       )}
     </>
   );

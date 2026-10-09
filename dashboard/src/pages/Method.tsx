@@ -50,7 +50,10 @@ export function Method({
         <li>GitHub Actions signs in to AWS with OIDC; no long-lived keys are stored.</li>
         <li>Terraform defines all infrastructure.</li>
         <li>AWS Batch runs on spot instances, capped at 96 vCPU.</li>
-        <li>Inputs and results live in S3; releases are published from there.</li>
+        <li>
+          Inputs and results live in S3. A release is published from the Cloud run&apos;s workflow artifact with{" "}
+          <code>scripts/publish-dataset.sh</code>.
+        </li>
         <li>Compute is destroyed after every run, and AWS budgets alert on spend.</li>
       </ul>
       <h2>Validation</h2>

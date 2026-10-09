@@ -24,7 +24,8 @@ export function Home({
   return (
     <div className="home">
       <header className="page-head">
-        <h1>AMR Explorer</h1>
+        <h1>Klebsiella AMR</h1>
+        <p className="subtitle">A project of the AMR Cloud Pipeline</p>
         <p className="intro">
           Public bacterial genomes are re-analysed in the cloud with one reproducible pipeline, and the results are
           explored here without leaving your browser. <em>Klebsiella pneumoniae</em> for now — a WHO critical-priority

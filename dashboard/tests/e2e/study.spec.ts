@@ -19,6 +19,41 @@ test("study page tells the story and links figures to the table", async ({ page 
   await expect(page.getByText("Fixture caveat paragraph.")).toBeVisible();
 });
 
+test("a study page includes QC-warning genomes by default and the toggle hides them", async ({ page }) => {
+  await page.goto("./#/study/study-a");
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates"); // F5 is a QC warning
+  const toggle = page.getByRole("checkbox", { name: "Include genomes with QC warnings" });
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await expect(page.getByTestId("isolate-count")).toHaveText("5 isolates");
+  await expect(page).toHaveURL(/qc=pass/);
+  await page.reload();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId("isolate-count")).toHaveText("5 isolates");
+  await toggle.check();
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  await expect(page).not.toHaveURL(/qc=/);
+});
+
+test("the map caption says how many genomes are not mapped and where countries come from", async ({ page }) => {
+  await page.goto("./#/study/study-a");
+  const caption = page.locator('[data-figure="map"] > p.note').first();
+  await expect(caption).toContainText(/no country in their ENA record and are not mapped/);
+  await expect(caption).toContainText("Country as recorded in ENA; the source table assigns countries to all genomes.");
+});
+
+test("finding figures only highlight: a heatmap pick does not reshape the period bars", async ({ page }) => {
+  await page.goto("./#/study/study-a");
+  const bars = page.locator('[data-figure="periods"] svg g[aria-label="bar"] rect');
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  const before = await bars.count();
+  expect(before).toBeGreaterThan(0);
+  await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().click();
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(bars).toHaveCount(before);
+  await expect(page.locator('[data-figure="map"] svg [aria-label="Germany"]').first()).toBeVisible();
+});
+
 test("a study without cohort or reference still renders", async ({ page }) => {
   await page.goto("./#/study/study-b");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Fixture study B");

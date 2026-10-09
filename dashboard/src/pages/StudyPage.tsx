@@ -11,6 +11,7 @@ import { RichText } from "../components/RichText";
 import { Timeline } from "../components/Timeline";
 import { TopElements } from "../components/TopElements";
 import type { Connection } from "../data/connection";
+import { formatCostPerGenome } from "../data/format";
 import { EMPTY_FILTERS, type Filters } from "../data/filters";
 import * as q from "../data/queries";
 import type { Finding, StudyEntry, StudyInfo } from "../data/studies";
@@ -21,7 +22,6 @@ import { useDashboard } from "../useDashboard";
 // world-atlas is large; load it only when a study has a map finding.
 const CountryMap = lazy(() => import("../components/CountryMap").then((m) => ({ default: m.CountryMap })));
 
-const REPO = "https://github.com/simomounir/amr-cloud-pipeline";
 const pct = (share: number) => `${Math.round(share * 100)}%`;
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 
@@ -43,9 +43,14 @@ function useQuery<T>(conn: Connection, key: string, load: () => Promise<T>): { d
   return state;
 }
 
-/** The filters a figure reads: the study's own, minus the dimensions that figure itself sets. */
-function without(filters: Filters, ...keys: (keyof Filters)[]): Filters {
-  return { ...filters, ...Object.fromEntries(keys.map((k) => [k, []])) };
+/**
+ * What the finding figures read: the whole study, narrowed only by year bounds and the QC toggle.
+ * Picks set the other filters, which drive the linked views and the table; the figures only
+ * highlight the current selection, so a pick in one figure never reshapes another.
+ */
+function figureFilters(studyFilters: Filters): Filters {
+  const { studies, yearMin, yearMax, hideQcWarnings } = studyFilters;
+  return { ...EMPTY_FILTERS, studies, yearMin, yearMax, hideQcWarnings };
 }
 
 function FigureError({ error }: { error: string }) {
@@ -58,7 +63,7 @@ function FigureError({ error }: { error: string }) {
 
 function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: FigureProps) {
   const [byPeriod, setByPeriod] = useState(false);
-  const read = useMemo(() => without(studyFilters, "clones", "families"), [studyFilters]);
+  const read = useMemo(() => figureFilters(studyFilters), [studyFilters]);
   const { data, error } = useQuery(conn, JSON.stringify([read, byPeriod]), () => q.familyHeatmap(conn, read, byPeriod));
   const latest = useRef(filters);
   latest.current = filters;
@@ -90,7 +95,7 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
 }
 
 function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: FigureProps) {
-  const read = useMemo(() => without(studyFilters, "clones", "periods", "combos"), [studyFilters]);
+  const read = useMemo(() => figureFilters(studyFilters), [studyFilters]);
   const { data, error } = useQuery(conn, JSON.stringify(read), () => q.periodMix(conn, read));
   const latest = useRef(filters);
   latest.current = filters;
@@ -101,6 +106,10 @@ function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
       setFilters({ ...f, clones: again ? [] : [clone], periods: again ? [] : [period], combos: again ? [] : [combo] });
     },
     [setFilters],
+  );
+  const selected = useMemo(
+    () => ({ clones: filters.clones, periods: filters.periods, combos: filters.combos }),
+    [filters.clones, filters.periods, filters.combos],
   );
   const table = useMemo<FigureTable>(
     () => ({
@@ -113,14 +122,17 @@ function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
   const n = (data ?? []).reduce((sum, r) => sum + r.genomes, 0);
   return (
     <FigureFrame figure="periods" title="Carbapenemase mix by clone and period" caption={`n = ${n} genomes`} table={table}>
-      {data && <PeriodBars rows={data} onPick={onPick} theme={theme} />}
+      {data && <PeriodBars rows={data} selected={selected} onPick={onPick} theme={theme} />}
     </FigureFrame>
   );
 }
 
 function MapFigure({ conn, studyFilters, filters, setFilters }: FigureProps) {
-  const read = useMemo(() => without(studyFilters, "countries"), [studyFilters]);
-  const { data, error } = useQuery(conn, JSON.stringify(read), () => q.countryCounts(conn, read));
+  const read = useMemo(() => figureFilters(studyFilters), [studyFilters]);
+  const { data, error } = useQuery(conn, JSON.stringify(read), async () => ({
+    rows: await q.countryCounts(conn, read),
+    noCountry: await q.noCountryCount(conn, read),
+  }));
   const latest = useRef(filters);
   latest.current = filters;
   const onPick = useCallback(
@@ -133,17 +145,21 @@ function MapFigure({ conn, studyFilters, filters, setFilters }: FigureProps) {
   const table = useMemo<FigureTable>(
     () => ({
       columns: ["Country", "Genomes", "Clones", "Carbapenemases"],
-      rows: (data ?? []).map((r) => [r.country, r.genomes, r.clones, r.families]),
+      rows: (data?.rows ?? []).map((r) => [r.country, r.genomes, r.clones, r.families]),
     }),
     [data],
   );
   if (error) return <FigureError error={error} />;
-  const n = (data ?? []).reduce((sum, r) => sum + r.genomes, 0);
+  const mapped = (data?.rows ?? []).reduce((sum, r) => sum + r.genomes, 0);
+  const noCountry = data?.noCountry ?? 0;
+  const caption =
+    `n = ${mapped + noCountry} genomes; ${noCountry} ${noCountry === 1 ? "genome has" : "genomes have"} no country ` +
+    "in their ENA record and are not mapped. Country as recorded in ENA; the source table assigns countries to all genomes.";
   return (
-    <FigureFrame figure="map" title="Where the genomes come from" caption={`n = ${n} genomes`} table={table}>
+    <FigureFrame figure="map" title="Where the genomes come from" caption={caption} table={table}>
       {data && (
         <Suspense fallback={<p className="note">Loading map…</p>}>
-          <CountryMap rows={data} onPick={onPick} />
+          <CountryMap rows={data.rows} selected={filters.countries} onPick={onPick} />
         </Suspense>
       )}
     </FigureFrame>
@@ -188,7 +204,10 @@ interface FigureProps {
   theme: Theme;
 }
 
-function FindingFigure({ finding, info, props }: { finding: Finding; info: StudyInfo; props: FigureProps }) {
+function FindingFigure({ finding, info, props, hasCohort }: { finding: Finding; info: StudyInfo; props: FigureProps; hasCohort: boolean }) {
+  if ((finding.figure === "heatmap" || finding.figure === "periods") && !hasCohort) {
+    return <p className="note">This study has no clone/period design variables.</p>;
+  }
   switch (finding.figure) {
     case "heatmap":
       return <HeatmapFigure {...props} />;
@@ -209,15 +228,10 @@ function HowWeKnow({ info }: { info: StudyInfo }) {
   const { run, agreement, reference, versions } = info;
   const rows: [string, ReactNode][] = [
     ["Total cost", run.cost_usd === null ? "not recorded" : `$${num(run.cost_usd)}`],
-    ["Cost per genome", run.cost_per_genome_usd === null ? "not recorded" : `$${num(run.cost_per_genome_usd, 3)}`],
+    ["Cost per analysed genome", formatCostPerGenome(run)],
     ["Instance-hours", num(run.instance_hours)],
-    ["Wall time", run.wall_time_minutes === null ? "not recorded" : `${num(run.wall_time_minutes, 0)} minutes`],
-    [
-      "Run",
-      <a key="run" href={`${REPO}/actions?query=${encodeURIComponent(run.run_id)}`} rel="noopener">
-        {run.run_id}
-      </a>,
-    ],
+    ["Pipeline wall time (first task to last)", run.wall_time_minutes === null ? "not recorded" : `${num(run.wall_time_minutes, 0)} minutes`],
+    ["Nextflow session", <code key="session">{run.run_id}</code>],
     ["AMRFinderPlus", versions.amrfinder.join(", ") || "unknown"],
     ["AMRFinderPlus database", versions.amrfinder_db.join(", ") || "unknown"],
   ];
@@ -313,6 +327,7 @@ function StudyBody({
   conn,
   study,
   info,
+  hasCohort,
   filters,
   setFilters,
   theme,
@@ -320,6 +335,7 @@ function StudyBody({
   conn: Connection;
   study: string;
   info: StudyInfo | null;
+  hasCohort: boolean;
   filters: Filters;
   setFilters: (f: Filters) => void;
   theme: Theme;
@@ -348,11 +364,19 @@ function StudyBody({
               <p>
                 <RichText text={f.text} />
               </p>
-              <FindingFigure finding={f} info={info} props={props} />
+              <FindingFigure finding={f} info={info} props={props} hasCohort={hasCohort} />
             </section>
           ))}
         </>
       )}
+      <label className="panel-option qc-toggle">
+        <input
+          type="checkbox"
+          checked={!filters.hideQcWarnings}
+          onChange={(e) => setFilters({ ...filters, hideQcWarnings: !e.target.checked })}
+        />{" "}
+        Include genomes with QC warnings
+      </label>
       <div className="sticky-chips">
         <FilterChips filters={filters} onChange={setFilters} />
       </div>
@@ -368,6 +392,7 @@ export function StudyPage({
   study,
   studies,
   infos,
+  hasCohort,
   failed,
   filters,
   setFilters,
@@ -377,6 +402,8 @@ export function StudyPage({
   study: string;
   studies: StudyEntry[];
   infos: Record<string, StudyInfo | null>;
+  /** Per study: whether it has a cohort table (clone and period). */
+  hasCohort: Record<string, boolean>;
   failed: { study: string; error: string }[];
   filters: Filters;
   setFilters: (f: Filters) => void;
@@ -403,5 +430,5 @@ export function StudyPage({
       </div>
     );
   }
-  return <StudyBody conn={conn} study={study} info={infos[study] ?? null} filters={filters} setFilters={setFilters} theme={theme} />;
+  return <StudyBody conn={conn} study={study} info={infos[study] ?? null} hasCohort={hasCohort[study] ?? false} filters={filters} setFilters={setFilters} theme={theme} />;
 }

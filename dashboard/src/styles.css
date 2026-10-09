@@ -112,3 +112,5 @@ footer { margin-top: 24px; color: var(--muted); font-size: 0.85rem; }
   .pipeline-h { display: none !important; }
   .pipeline-v { display: block !important; }
 }
+.page-head .subtitle { margin: 0 0 12px; }
+.qc-toggle { display: block; margin: 12px 0; }

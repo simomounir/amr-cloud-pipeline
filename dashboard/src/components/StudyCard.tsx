@@ -1,3 +1,4 @@
+import { costPerGenome, formatCostPerGenome } from "../data/format";
 import type { StudyInfo } from "../data/studies";
 import { toHash } from "../state/url";
 import { Predates } from "./Predates";
@@ -29,7 +30,7 @@ export function StudyCard({ study, info, error }: { study: string; info: StudyIn
           )}
           <p className="study-note">
             {info.run.analysed} genomes analysed
-            {info.run.cost_per_genome_usd !== null && ` · $${info.run.cost_per_genome_usd.toFixed(3)} per genome`}
+            {costPerGenome(info.run) !== null && ` · ${formatCostPerGenome(info.run)} per analysed genome`}
           </p>
         </>
       ) : (

@@ -14,6 +14,7 @@ const COLUMNS: (keyof IsolateRow)[] = [
   "qc_status",
 ];
 const HEADERS: Record<keyof IsolateRow, string> = {
+  study: "Study",
   sample: "Sample",
   run_accession: "Run",
   country: "Country",
@@ -33,7 +34,9 @@ function download(text: string, name: string) {
   URL.revokeObjectURL(url);
 }
 
-export function IsolateTable({ rows }: { rows: IsolateRow[] }) {
+/** `showStudy` adds a first Study column (and CSV column) for tables that span several studies. */
+export function IsolateTable({ rows, showStudy = false }: { rows: IsolateRow[]; showStudy?: boolean }) {
+  const columns = useMemo(() => (showStudy ? (["study", ...COLUMNS] as (keyof IsolateRow)[]) : COLUMNS), [showStudy]);
   const [sort, setSort] = useState<{ key: keyof IsolateRow; asc: boolean }>({ key: "sample", asc: true });
   const [page, setPage] = useState(0);
   const sorted = useMemo(
@@ -51,7 +54,7 @@ export function IsolateTable({ rows }: { rows: IsolateRow[] }) {
   return (
     <>
       <div className="table-actions">
-        <button onClick={() => download(toCsv(sorted as unknown as Record<string, unknown>[], COLUMNS), "isolates.csv")}>
+        <button onClick={() => download(toCsv(sorted as unknown as Record<string, unknown>[], columns), "isolates.csv")}>
           Download CSV
         </button>
         <span data-testid="isolate-count">{rows.length} isolates</span>
@@ -60,7 +63,7 @@ export function IsolateTable({ rows }: { rows: IsolateRow[] }) {
         <table>
           <thead>
             <tr>
-              {COLUMNS.map((c) => (
+              {columns.map((c) => (
                 <th key={c} aria-sort={sort.key === c ? (sort.asc ? "ascending" : "descending") : "none"}>
                   <button onClick={() => setSort({ key: c, asc: sort.key === c ? !sort.asc : true })}>
                     {HEADERS[c]}
@@ -71,7 +74,8 @@ export function IsolateTable({ rows }: { rows: IsolateRow[] }) {
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr key={r.sample}>
+              <tr key={`${r.study}:${r.sample}`}>
+                {showStudy && <td>{r.study}</td>}
                 <td>
                   {r.run_accession ? (
                     <a href={`https://www.ebi.ac.uk/ena/browser/view/${r.run_accession}`} target="_blank" rel="noreferrer">

@@ -16,7 +16,7 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   const download = await downloadPromise;
   const text = await readFile(await download.path(), "utf8");
   expect(text.split("\n")[0]).toBe(
-    "sample,run_accession,country,collection_year,source_category,st,carbapenemase_genes,ctxm_genes,qc_status",
+    "study,sample,run_accession,country,collection_year,source_category,st,carbapenemase_genes,ctxm_genes,qc_status",
   );
   expect(text.trim().split("\n")).toHaveLength(3);
   await expect(page.getByText("Public data; demonstrates a method, not surveillance findings.")).toBeVisible();

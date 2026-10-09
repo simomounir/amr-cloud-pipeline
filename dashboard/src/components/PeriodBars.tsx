@@ -6,12 +6,31 @@ import { PlotFigure } from "./PlotFigure";
 
 const isMulti = (combo: string) => combo.includes("+");
 
-export function PeriodBars({ rows, onPick, theme }: { rows: MixRow[]; onPick: (clone: string, period: string, combo: string) => void; theme: Theme }) {
+export interface PeriodSelection {
+  clones: string[];
+  periods: string[];
+  combos: string[];
+}
+
+export function PeriodBars({
+  rows,
+  selected,
+  onPick,
+  theme,
+}: {
+  rows: MixRow[];
+  /** The current selection: matching bars are outlined, the others dimmed. */
+  selected: PeriodSelection;
+  onPick: (clone: string, period: string, combo: string) => void;
+  theme: Theme;
+}) {
   const combos = useMemo(() => sortCombos(rows.map((r) => r.combo)), [rows]);
   const clones = useMemo(() => [...new Set(rows.map((r) => r.clone))].sort(), [rows]);
-  const options = useMemo<Plot.PlotOptions>(
-    () =>
-      ({
+  const options = useMemo<Plot.PlotOptions>(() => {
+    const has = (list: string[], v: string) => list.length === 0 || list.includes(v);
+    const hasSelection = selected.clones.length + selected.periods.length + selected.combos.length > 0;
+    const isSelected = (d: MixRow) => hasSelection && has(selected.clones, d.clone) && has(selected.periods, d.period) && has(selected.combos, d.combo);
+    return {
         height: 360,
         marginBottom: 70,
         marginLeft: 48,
@@ -27,9 +46,9 @@ export function PeriodBars({ rows, onPick, theme }: { rows: MixRow[]; onPick: (c
               x: "period",
               y: "share",
               fill: "combo",
-              fillOpacity: (d: MixRow) => (isMulti(d.combo) ? 0.55 : 1),
-              stroke: "var(--surface)",
-              strokeWidth: 2,
+              fillOpacity: (d: MixRow) => (isMulti(d.combo) ? 0.55 : 1) * (hasSelection && !isSelected(d) ? 0.35 : 1),
+              stroke: (d: MixRow) => (isSelected(d) ? "var(--ink)" : "var(--surface)"),
+              strokeWidth: (d: MixRow) => (isSelected(d) ? 3 : 2),
               ariaLabel: (d: MixRow) => `${d.clone} ${d.period} ${d.combo}`,
               title: (d: MixRow) => `${d.clone}, ${d.period}\n${d.combo}: ${d.genomes} genomes (${Math.round(d.share * 100)}%)`,
               tip: true,
@@ -37,9 +56,8 @@ export function PeriodBars({ rows, onPick, theme }: { rows: MixRow[]; onPick: (c
           ),
           Plot.ruleY([0]),
         ],
-      }) as Plot.PlotOptions,
-    [rows, clones, combos, theme],
-  );
+    } as Plot.PlotOptions;
+  }, [rows, clones, combos, selected, theme]);
   const pick = useCallback((d: unknown) => onPick((d as MixRow).clone, (d as MixRow).period, (d as MixRow).combo), [onPick]);
   return (
     <>

@@ -14,6 +14,9 @@ function safeDecode(raw: string): string | null {
   }
 }
 
+/** QC-warning genomes are hidden by default on Explore, shown by default on a study page. */
+const hidesQcByDefault = (route: Route) => route.page !== "study";
+
 function parseRoute(path: string): Route {
   const parts = path.replace(/^\/+/, "").split("/");
   if (parts[0] === "study" && /^[a-z0-9][a-z0-9-]*$/.test(parts[1] ?? "")) return { page: "study", study: parts[1] };
@@ -37,13 +40,15 @@ export function parseHash(hash: string): { route: Route; filters: Partial<Filter
     } else if ((key === "from" || key === "to") && /^\d{4}$/.test(raw)) {
       filters[key === "from" ? "yearMin" : "yearMax"] = Number(raw);
     } else if (key === "carb" && raw === "1") filters.carbapenemaseOnly = true;
-    else if (key === "qc" && raw === "all") filters.hideQcWarnings = false;
+    else if (key === "qc" && (raw === "all" || raw === "pass")) filters.hideQcWarnings = raw === "pass";
   }
-  return { route: parseRoute(path), filters };
+  const route = parseRoute(path);
+  if (filters.hideQcWarnings === undefined && !hidesQcByDefault(route)) filters.hideQcWarnings = false;
+  return { route, filters };
 }
 
 export function toHash(route: Route, filters: Partial<Filters> = {}): string {
-  const f = { ...EMPTY_FILTERS, ...filters };
+  const f = { ...EMPTY_FILTERS, hideQcWarnings: hidesQcByDefault(route), ...filters };
   const path = route.page === "home" ? "/" : route.page === "study" ? `/study/${route.study}` : `/${route.page}`;
   const parts: string[] = [];
   for (const [key, field] of Object.entries(LISTS)) {
@@ -52,6 +57,6 @@ export function toHash(route: Route, filters: Partial<Filters> = {}): string {
   if (f.yearMin !== null) parts.push(`from=${f.yearMin}`);
   if (f.yearMax !== null) parts.push(`to=${f.yearMax}`);
   if (f.carbapenemaseOnly) parts.push("carb=1");
-  if (!f.hideQcWarnings) parts.push("qc=all");
+  if (f.hideQcWarnings !== hidesQcByDefault(route)) parts.push(f.hideQcWarnings ? "qc=pass" : "qc=all");
   return `#${path}${parts.length ? `?${parts.join("&")}` : ""}`;
 }

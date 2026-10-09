@@ -13,8 +13,31 @@ describe("url state", () => {
   it("round-trips a selection", () => {
     const filters = { ...EMPTY_FILTERS, clones: ["ST147"], families: ["NDM", "OXA-48-like"], yearMin: 2013, hideQcWarnings: false };
     const hash = toHash({ page: "study", study: "s1" }, filters);
-    expect(hash).toBe("#/study/s1?clone=ST147&family=NDM,OXA-48-like&from=2013&qc=all");
+    expect(hash).toBe("#/study/s1?clone=ST147&family=NDM,OXA-48-like&from=2013");
     expect({ ...EMPTY_FILTERS, ...parseHash(hash).filters }).toEqual(filters);
+  });
+  it("QC warnings default to shown on a study route and hidden on explore", () => {
+    const study = { page: "study", study: "s1" } as const;
+    expect(parseHash("#/study/s1").filters.hideQcWarnings).toBe(false);
+    expect(parseHash("#/study/s1?qc=pass").filters.hideQcWarnings).toBe(true);
+    expect(parseHash("#/study/s1?qc=all").filters.hideQcWarnings).toBe(false);
+    expect({ ...EMPTY_FILTERS, ...parseHash("#/explore").filters }.hideQcWarnings).toBe(true);
+    expect(parseHash("#/explore?qc=all").filters.hideQcWarnings).toBe(false);
+    expect(parseHash("#/explore?qc=pass").filters.hideQcWarnings).toBe(true);
+    expect(toHash(study, { ...EMPTY_FILTERS, hideQcWarnings: true })).toBe("#/study/s1?qc=pass");
+    expect(toHash(study, { ...EMPTY_FILTERS, hideQcWarnings: false })).toBe("#/study/s1");
+    expect(toHash(study)).toBe("#/study/s1");
+    expect(toHash({ page: "explore" }, { hideQcWarnings: false })).toBe("#/explore?qc=all");
+    expect(toHash({ page: "explore" }, { hideQcWarnings: true })).toBe("#/explore");
+    expect(toHash({ page: "explore" })).toBe("#/explore");
+  });
+  it("round-trips the QC choice on both routes", () => {
+    for (const route of [{ page: "study", study: "s1" }, { page: "explore" }] as const) {
+      for (const hideQcWarnings of [true, false]) {
+        const filters = { ...EMPTY_FILTERS, clones: ["ST1"], hideQcWarnings };
+        expect({ ...EMPTY_FILTERS, ...parseHash(toHash(route, filters)).filters }).toEqual(filters);
+      }
+    }
   });
   it("encodes values with commas and spaces", () => {
     const hash = toHash({ page: "explore" }, { countries: ["Korea, Republic of", "Côte d'Ivoire"] });
