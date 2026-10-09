@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { EMPTY_FILTERS } from "../src/data/filters";
 import { headline, topElements, isolateRows, options, timeline } from "../src/data/queries";
+import { baseViewsSql } from "../src/data/tables";
 import { createViews } from "../src/data/views";
 import { emptyConnection } from "./nodeConnection";
 
@@ -8,20 +9,23 @@ import { emptyConnection } from "./nodeConnection";
 it("every panel query finishes within a second at 10,000 isolates", async () => {
   const conn = await emptyConnection();
   await conn.query(`CREATE TABLE samples AS
-    SELECT 'S' || i AS sample, 'SRR' || i AS run_accession,
+    SELECT 'scale' AS study, 'S' || i AS sample, 'SRR' || i AS run_accession,
            ['Germany','India','United States','Brazil','Italy'][1 + i % 5] AS country, NULL AS region,
            CASE WHEN i % 7 = 0 THEN NULL ELSE 2010 + i % 15 END::SMALLINT AS collection_year,
            ['blood','urine','wound','screening','unknown'][1 + i % 5] AS source_category
     FROM range(10000) t(i)`);
   await conn.query(`CREATE TABLE run_summary AS
-    SELECT 'S' || i AS sample, 'ST' || (i % 40) AS st,
+    SELECT 'scale' AS study, 'S' || i AS sample, 'ST' || (i % 40) AS st,
            CASE WHEN i % 10 = 0 THEN 'warn' ELSE 'pass' END AS qc_status
     FROM range(10000) t(i)`);
   await conn.query(`CREATE TABLE amr_genes AS
-    SELECT 'S' || (i % 10000) AS sample, 'gene' || (i % 60) AS gene_symbol, 'AMR' AS element_type,
+    SELECT 'scale' AS study, 'S' || (i % 10000) AS sample, 'gene' || (i % 60) AS gene_symbol, 'AMR' AS element_type,
            'AMR' AS element_subtype, 'BETA-LACTAM' AS drug_class,
            CASE WHEN i % 9 = 0 THEN 'CARBAPENEM' ELSE 'CEPHALOSPORIN' END AS drug_subclass
     FROM range(440000) t(i)`);
+  // No study has a cohort: the shared empty cohort view (the other statements need Parquet files).
+  const [cohortView] = baseViewsSql(["scale"], () => "", () => false).filter((sql) => sql.includes("VIEW cohort"));
+  await conn.query(cohortView);
   await createViews(conn);
   for (const query of [headline, timeline, topElements, isolateRows]) {
     const start = performance.now();

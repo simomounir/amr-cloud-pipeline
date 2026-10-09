@@ -1,9 +1,10 @@
 import { DuckDBInstance, type DuckDBValue } from "@duckdb/node-api";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Connection, Row } from "../src/data/connection";
+import { baseViewsSql } from "../src/data/tables";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/data/", import.meta.url));
-export const TABLES = ["samples", "amr_genes", "run_summary"] as const;
 
 export async function emptyConnection(): Promise<Connection> {
   const instance = await DuckDBInstance.create(":memory:");
@@ -18,8 +19,12 @@ export async function emptyConnection(): Promise<Connection> {
 
 export async function fixtureConnection(directory = FIXTURE): Promise<Connection> {
   const conn = await emptyConnection();
-  for (const table of TABLES) {
-    await conn.query(`CREATE VIEW ${table} AS SELECT * FROM read_parquet('${directory}${table}.parquet')`);
-  }
+  const studies = (JSON.parse(readFileSync(`${directory}studies.json`, "utf8")) as { study: string }[]).map((s) => s.study);
+  const statements = baseViewsSql(
+    studies,
+    (s, t) => `${directory}${s}/${t}.parquet`,
+    (s) => existsSync(`${directory}${s}/cohort.parquet`),
+  );
+  for (const sql of statements) await conn.query(sql);
   return conn;
 }

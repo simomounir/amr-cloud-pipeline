@@ -22,6 +22,7 @@ describe("toWhere", () => {
 
   it("combines all filters in a fixed order", () => {
     const where = toWhere({
+      ...EMPTY_FILTERS,
       countries: ["India"],
       sources: ["wound"],
       sts: ["ST147"],
@@ -40,5 +41,11 @@ describe("toWhere", () => {
     const where = toWhere({ ...EMPTY_FILTERS, countries: ["India"], sts: ["ST147"] }, "countries");
     expect(where.sql).toBe("WHERE st IN (?) AND qc_status = 'pass'");
     expect(where.params).toEqual(["ST147"]);
+  });
+
+  it("filters by clone, period, combo and carried family", () => {
+    const where = toWhere({ ...EMPTY_FILTERS, clones: ["ST147"], families: ["NDM", "VIM"], combos: ["none"], hideQcWarnings: false });
+    expect(where.sql).toBe("WHERE clone IN (?) AND family_combo IN (?) AND len(list_intersect(family_list, [?, ?])) > 0");
+    expect(where.params).toEqual(["ST147", "none", "NDM", "VIM"]);
   });
 });

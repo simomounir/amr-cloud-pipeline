@@ -1,0 +1,38 @@
+{
+  "study": "study-b",
+  "title": "Fixture study B",
+  "question": "Is a second study kept apart?",
+  "focus": "carbapenemases",
+  "background": [
+    "Fixture background paragraph."
+  ],
+  "findings": [
+    {
+      "id": "a-finding-without-a-figure",
+      "figure": null,
+      "title": "A finding without a figure",
+      "text": "Text."
+    }
+  ],
+  "caveats": [],
+  "reference": null,
+  "run": {
+    "run_id": "fx",
+    "selected": 2,
+    "analysed": 2,
+    "failed": [],
+    "cost_usd": null,
+    "cost_per_genome_usd": null,
+    "instance_hours": null,
+    "wall_time_minutes": null
+  },
+  "agreement": null,
+  "versions": {
+    "amrfinder": [
+      "4.2.7"
+    ],
+    "amrfinder_db": [
+      "2026-09-30.1"
+    ]
+  }
+}

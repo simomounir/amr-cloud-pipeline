@@ -1,9 +1,9 @@
 name: Pages
 
-# The site shows the dataset release named in dashboard/dataset.txt, so publishing a dataset is a
-# commit (scripts/publish-dataset.sh) and every deployed site matches a commit. Pages identifies a
-# deployment by its commit: a release-triggered redeploy of an unchanged commit kept serving the
-# old files (2026-10-09).
+# The site shows the releases listed in dashboard/studies.json (one per study), so publishing a
+# study is a commit (scripts/publish-dataset.sh) and every deployed site matches a commit.
+# Pages identifies a deployment by its commit: a release-triggered redeploy of an unchanged
+# commit kept serving the old files (2026-10-09).
 on:
   push:
     branches: [main]
@@ -30,15 +30,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
-      - name: Download the pinned dataset release
+      - name: Download the pinned study releases
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=$(tr -d '[:space:]' < dashboard/dataset.txt)
-          [[ "$tag" =~ ^dataset-[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::dashboard/dataset.txt must name a dataset-YYYY-MM-DD release"; exit 1; }
+          jq -e 'map(.study) | length == (unique | length)' dashboard/studies.json > /dev/null \
+            || { echo "::error::duplicate study names in studies.json"; exit 1; }
           mkdir -p dashboard/public/data
-          gh release download "$tag" --dir dashboard/public/data --pattern '*.parquet' --pattern manifest.json
-          echo "$tag" > dashboard/public/data/TAG
+          cp dashboard/studies.json dashboard/public/data/studies.json
+          jq -r '.[] | "\(.study) \(.release)"' dashboard/studies.json | while read -r study tag; do
+            [[ "$study" =~ ^[a-z0-9][a-z0-9-]*$ && "$tag" =~ ^dataset-([a-z0-9-]+-)?[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+              || { echo "::error::bad studies.json entry: $study $tag"; exit 1; }
+            gh release download "$tag" --dir "dashboard/public/data/$study" \
+              --pattern '*.parquet' --pattern manifest.json --pattern study.json
+          done
       - name: Build
         working-directory: dashboard
         run: npm ci && npm run build

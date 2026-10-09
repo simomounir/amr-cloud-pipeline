@@ -1,8 +1,10 @@
-import type { Filters, ListFilter } from "../data/filters";
+import type { Filters } from "../data/filters";
 import { EMPTY_FILTERS } from "../data/filters";
-import type { OptionRow } from "../data/queries";
+import type { OptionKey, OptionRow } from "../data/queries";
 
-const LABELS: Record<ListFilter, string> = { countries: "Country", sources: "Isolation source", sts: "Sequence type" };
+type ListFilter = OptionKey;
+
+const LABELS: Record<ListFilter, string> = { studies: "Study", countries: "Country", sources: "Isolation source", sts: "Sequence type" };
 
 export function FilterBar({
   filters,
@@ -78,7 +80,7 @@ export function FilterBar({
         />{" "}
         Hide QC warnings
       </label>
-      <button onClick={() => onChange(EMPTY_FILTERS)}>Clear filters</button>
+      <button onClick={() => onChange({ ...EMPTY_FILTERS, includeIntrinsic: filters.includeIntrinsic })}>Clear filters</button>
     </aside>
   );
 }

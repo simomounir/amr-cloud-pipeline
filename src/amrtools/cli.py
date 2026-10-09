@@ -17,6 +17,7 @@ from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
 from amrtools.schema import export_json
+from amrtools.study import build_bundle
 from amrtools.validate import validate_dir
 
 
@@ -81,6 +82,12 @@ def _parser() -> argparse.ArgumentParser:
     status = commands.add_parser("run-status", help="report failed samples of a run")
     status.add_argument("directory", type=Path)
     status.add_argument("--max-failed-fraction", type=float, default=0.25)
+
+    bundle = commands.add_parser("study-bundle", help="cohort.parquet and study.json for a release")
+    bundle.add_argument("--study-dir", type=Path, required=True)
+    bundle.add_argument("--dataset", type=Path, required=True)
+    bundle.add_argument("--run-dir", type=Path)
+    bundle.add_argument("--out", type=Path, required=True, dest="bundle_out")
 
     build = commands.add_parser("build-dataset", help="combine run folders into one dataset")
     build.add_argument("inputs", type=Path, nargs="+")
@@ -188,6 +195,14 @@ def _run_status(args: argparse.Namespace) -> None:
         )
 
 
+def _run_study_bundle(args: argparse.Namespace) -> None:
+    info = build_bundle(args.study_dir, args.dataset, args.run_dir, args.bundle_out)
+    print(
+        f"{info['study']}: {info['run']['analysed']}/{info['run']['selected']} analysed",
+        file=sys.stderr,
+    )
+
+
 def _run_build_dataset(args: argparse.Namespace) -> None:
     manifest = build_dataset(args.inputs, args.out)
     rows = ", ".join(f"{name} {entry['rows']}" for name, entry in manifest["tables"].items())
@@ -209,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         "build-dataset": _run_build_dataset,
         "run-status": _run_status,
         "fetch-reads": _run_fetch_reads,
+        "study-bundle": _run_study_bundle,
     }
     try:
         commands[args.command](args)

@@ -4,3 +4,6 @@ title: Carbapenemases in high-risk K. pneumoniae clones over time
 question: Which carbapenemase families travel with ST11, ST147, ST258/512 and ST307, and how has that changed since 2012?
 organism: Klebsiella_pneumoniae
 max_isolates: 160
+reference_name: Pathogenwatch (AMRnet table, snapshot 2025-08-05)
+reference_st_column: amrnet_st
+reference_carbapenemases_column: amrnet_carbapenemases

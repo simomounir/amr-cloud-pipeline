@@ -1,9 +1,12 @@
 import type { Connection } from "./connection";
 import { type Filters, type ListFilter, toWhere } from "./filters";
+import countriesSql from "./sql/countries.sql?raw";
 import headlineSql from "./sql/headline.sql?raw";
 import topElementsSql from "./sql/top_elements.sql?raw";
+import heatmapSql from "./sql/heatmap.sql?raw";
 import isolatesSql from "./sql/isolates.sql?raw";
 import optionsSql from "./sql/options.sql?raw";
+import periodMixSql from "./sql/period_mix.sql?raw";
 import timelineSql from "./sql/timeline.sql?raw";
 import yearsSql from "./sql/years.sql?raw";
 
@@ -28,6 +31,7 @@ export interface ElementRow {
   share: number;
 }
 export interface IsolateRow {
+  study: string;
   sample: string;
   run_accession: string | null;
   country: string | null;
@@ -44,7 +48,9 @@ export interface OptionRow {
 }
 
 // Option queries interpolate one of these fixed column names, never user input.
-const OPTION_COLUMNS: Record<ListFilter, string> = {
+export type OptionKey = "studies" | "countries" | "sources" | "sts";
+const OPTION_COLUMNS: Record<OptionKey, string> = {
+  studies: "study",
   countries: "country",
   sources: "source_category",
   sts: "st",
@@ -73,8 +79,66 @@ export function isolateRows(conn: Connection, filters: Filters): Promise<Isolate
   return run<IsolateRow>(conn, isolatesSql, filters);
 }
 
-export function options(conn: Connection, filters: Filters, key: ListFilter): Promise<OptionRow[]> {
+export function options(conn: Connection, filters: Filters, key: OptionKey): Promise<OptionRow[]> {
   return run<OptionRow>(conn, optionsSql.replace("{{column}}", OPTION_COLUMNS[key]), filters, key);
+}
+
+export interface HeatCell {
+  clone: string;
+  period: string;
+  family: string;
+  genomes: number;
+  carriers: number;
+  share: number;
+}
+export interface MixRow {
+  clone: string;
+  period: string;
+  combo: string;
+  genomes: number;
+  share: number;
+}
+export interface CountryRow {
+  country: string;
+  genomes: number;
+  clones: string | null;
+  families: string;
+}
+
+export function familyHeatmap(conn: Connection, filters: Filters, byPeriod: boolean): Promise<HeatCell[]> {
+  return run<HeatCell>(conn, heatmapSql.replace("{{period}}", byPeriod ? "period" : "'all'"), filters);
+}
+
+export function periodMix(conn: Connection, filters: Filters): Promise<MixRow[]> {
+  return run<MixRow>(conn, periodMixSql, filters);
+}
+
+export function countryCounts(conn: Connection, filters: Filters): Promise<CountryRow[]> {
+  return run<CountryRow>(conn, countriesSql, filters);
+}
+
+/** Genomes among those the filters select that have no country in their ENA record. */
+export async function noCountryCount(conn: Connection, filters: Filters): Promise<number> {
+  const where = toWhere(filters);
+  const [row] = await conn.query<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM isolates ${where.sql ? `${where.sql} AND` : "WHERE"} country IS NULL`,
+    where.params,
+  );
+  return row.n;
+}
+
+/**
+ * Genomes the heatmap and period figures show: those the filters select that have a clone (and, by
+ * period, a period). A direct count, not derived from the per-cell denominators.
+ */
+export async function cohortGenomeCount(conn: Connection, filters: Filters, byPeriod: boolean): Promise<number> {
+  const where = toWhere(filters);
+  const [row] = await conn.query<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM isolates ${where.sql ? `${where.sql} AND` : "WHERE"} clone IS NOT NULL` +
+      (byPeriod ? " AND period IS NOT NULL" : ""),
+    where.params,
+  );
+  return row.n;
 }
 
 export interface AnalysisCounts {
@@ -84,10 +148,14 @@ export interface AnalysisCounts {
 
 // A sample whose analysis failed has metadata but no run_summary row (schema 1.2.0 also marks it
 // in samples.analysis_status; counting this way works for older datasets too).
-export async function analysisCounts(conn: Connection): Promise<AnalysisCounts> {
+export async function analysisCounts(conn: Connection, study?: string): Promise<AnalysisCounts> {
+  // The study is bound once (NULL = all studies).
   const [row] = await conn.query<{ analysed: number; failed: number }>(
-    `SELECT (SELECT count(*) FROM run_summary)::INTEGER AS analysed,
-            ((SELECT count(*) FROM samples) - (SELECT count(*) FROM run_summary))::INTEGER AS failed`,
+    `WITH p AS (SELECT ?::VARCHAR AS study),
+          a AS (SELECT count(*) AS n FROM run_summary r, p WHERE p.study IS NULL OR r.study = p.study),
+          s AS (SELECT count(*) AS n FROM samples m, p WHERE p.study IS NULL OR m.study = p.study)
+     SELECT a.n::INTEGER AS analysed, (s.n - a.n)::INTEGER AS failed FROM a, s`,
+    [study ?? null],
   );
   return { analysed: row.analysed, failed: row.failed };
 }

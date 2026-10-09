@@ -6,5 +6,5 @@ export default defineConfig({
   plugins: [react()],
   // DuckDB-WASM's JS glue is ~600 kB (about 200 kB gzipped); the WASM itself loads from the CDN.
   build: { chunkSizeWarningLimit: 800 },
-  test: { include: ["tests/**/*.test.ts"], testTimeout: 30_000 },
+  test: { include: ["tests/**/*.test.{ts,tsx}"], testTimeout: 30_000 },
 });

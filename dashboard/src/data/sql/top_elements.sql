@@ -1,8 +1,8 @@
-WITH shown AS (SELECT sample FROM isolates {{where}}),
+WITH shown AS (SELECT study, sample FROM isolates {{where}}),
 hits AS (
-    SELECT e.gene_symbol, coalesce(e.drug_class, 'unknown') AS drug_class, count(DISTINCT e.sample) AS carriers
+    SELECT e.gene_symbol, coalesce(e.drug_class, 'unknown') AS drug_class, count(DISTINCT (e.study, e.sample)) AS carriers
     FROM amr_elements e
-    JOIN shown USING (sample)
+    JOIN shown USING (study, sample)
     WHERE TRUE {{intrinsic}}
     GROUP BY ALL
 )

@@ -1,7 +1,8 @@
 # Results: carbapenemases in high-risk *K. pneumoniae* clones over time
 
 Run `20261009T104928Z` (Cloud run [37919795836](https://github.com/simomounir/amr-cloud-pipeline/actions/runs/37919795836)),
-published as dataset [`dataset-2026-10-09`](https://github.com/simomounir/amr-cloud-pipeline/releases/tag/dataset-2026-10-09).
+published as dataset [`dataset-2026-10-09`](https://github.com/simomounir/amr-cloud-pipeline/releases/tag/dataset-2026-10-09)
+and, with the study page's files, [`dataset-carbapenemase-clones-2026-10-09`](https://github.com/simomounir/amr-cloud-pipeline/releases/tag/dataset-carbapenemase-clones-2026-10-09).
 Design and limits: [README.md](README.md).
 
 ## Run
