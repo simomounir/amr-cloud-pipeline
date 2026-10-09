@@ -69,7 +69,10 @@ sample,fastq_1,fastq_2,sample_type,organism
 S1,reads/S1_R1.fastq.gz,reads/S1_R2.fastq.gz,isolate,Klebsiella_pneumoniae
 ```
 
-Relative paths resolve against the samplesheet's folder. Pass
+Relative paths resolve against the samplesheet's folder. `fastq_1`/`fastq_2` may also be
+HTTP(S)/FTP URLs (both or neither): each sample's first task downloads them, retrying broken
+transfers and checking the size, and the MD5 when the optional `md5_1`/`md5_2` columns give one
+(`fetch-samples` fills them from ENA). Pass
 `--amrfinder_db <file.tar.gz>` to pin an AMRFinderPlus database; otherwise the
 latest is downloaded. Build the archive from one database version:
 

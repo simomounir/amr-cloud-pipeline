@@ -86,3 +86,10 @@ def test_cli(server, tmp_path):
     out = tmp_path / "r.fastq.gz"
     assert main(["fetch-reads", f"{server}/ok", "--out", str(out), "--md5", MD5]) == 0
     assert out.read_bytes() == BODY
+
+
+def test_unsupported_scheme_fails_at_once(tmp_path):
+    slept = []
+    with pytest.raises(FetchError, match="unsupported"):
+        fetch("s3://bucket/r_1.fastq.gz", tmp_path / "r.fastq.gz", sleep=slept.append)
+    assert slept == []  # not retried: it will never work

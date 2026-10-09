@@ -147,6 +147,24 @@ nextflow_pipeline {
         }
     }
 
+    test("a row mixing a local file and a URL is rejected") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_mixed.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join('\n').contains('both local files or both URLs')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
     test("sample names differing only in case are rejected") {
         tag "validation"
         options "-stub"

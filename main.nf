@@ -5,10 +5,14 @@ include { ISOLATE } from './workflows/isolate'
 
 // Relative FASTQ paths resolve against the samplesheet's folder, not the launch folder.
 // Local files are checked here so a typo fails before any process runs.
-// Remote URLs stay strings: each sample's FETCH_READS task downloads them (see ISOLATE).
+// HTTP(S)/FTP URLs stay strings: each sample's FETCH_READS task downloads them (see ISOLATE).
+// Other remote paths (s3://, ...) stay files, which each task stages itself.
 def resolveFastq(value, samplesheetDir) {
-    if (value.contains('://')) {
+    if (value ==~ /(?i)^(https?|ftp):\/\/.+/) {
         return value
+    }
+    if (value.contains('://')) {
+        return file(value)
     }
     def path = value.startsWith('/') || value.startsWith('~') ? file(value) : samplesheetDir.resolve(value)
     if (!path.exists()) {
@@ -35,7 +39,11 @@ workflow {
 
     def samplesheetDir = file(params.input).parent
     def samples = rows.collect { row ->
-        [row[0] + [single_end: false], [resolveFastq(row[1], samplesheetDir), resolveFastq(row[2], samplesheetDir)]]
+        def reads = [resolveFastq(row[1], samplesheetDir), resolveFastq(row[2], samplesheetDir)]
+        if ((reads[0] instanceof String) != (reads[1] instanceof String)) {
+            error("Sample ${row[0].id}: fastq_1 and fastq_2 must be both local files or both URLs")
+        }
+        [row[0] + [single_end: false], reads]
     }
 
     ISOLATE(channel.fromList(samples), channel.value(file(params.input)))

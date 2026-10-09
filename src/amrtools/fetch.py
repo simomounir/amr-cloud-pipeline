@@ -14,6 +14,7 @@ from pathlib import Path
 from amrtools.errors import InputFormatError
 
 CHUNK = 1 << 20
+SCHEMES = ("http://", "https://", "ftp://")
 
 
 class FetchError(InputFormatError):
@@ -49,6 +50,8 @@ def fetch(
     sleep=time.sleep,
 ) -> None:
     """Download `url` to `out`. Writes to a `.part` file and renames it only when complete."""
+    if not url.lower().startswith(SCHEMES):
+        raise FetchError(f"{url}: unsupported URL scheme (http, https or ftp only)")
     out = Path(out)
     part = out.with_name(out.name + ".part")
     error: Exception | None = None

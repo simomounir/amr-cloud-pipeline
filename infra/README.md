@@ -94,8 +94,8 @@ to `runs/<study>/<run>/` and validates them, destroys `compute`, then prices the
 (`cost.json`). Results stay in `s3://<bucket>/results/<study>/<run>/`.
 
 **Reads.** Each sample's first task (`FETCH_READS`) downloads its own reads from ENA on the
-worker, with retries and a size and MD5 check (`amrtools fetch-reads`; ENA's MD5s are in the
-samplesheet), at most 16 at a time. Nextflow no longer stages every remote file through the
+worker, with retries, checking the size (when the server reports it) and ENA's MD5 (from the
+samplesheet, when present), at most 16 at a time (`amrtools fetch-reads`). Nextflow no longer stages every remote file through the
 machine running it, where one dropped connection stopped a whole run.
 
 **Failed samples.** A per-sample step that fails (or exceeds its time limit: Shovill 3 h,
