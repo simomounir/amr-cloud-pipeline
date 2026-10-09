@@ -19,14 +19,30 @@ export function PlotFigure({
     for (const svg of figure.tagName === "svg" ? [figure] : figure.querySelectorAll("svg")) {
       svg.style.setProperty("--plot-background", "var(--surface)");
     }
-    const click = () => {
-      const value = (figure as unknown as { value?: unknown }).value;
-      if (onPick && value != null) onPick(value);
+    // Plot clears figure.value on the second pointerdown, before click, so remember the datum under the
+    // pointer from `input` events and from a capture-phase pointerdown that runs before Plot's handler.
+    const valueOf = () => (figure as unknown as { value?: unknown }).value;
+    let pointed: unknown = null;
+    const remember = () => {
+      const value = valueOf();
+      if (value != null) pointed = value;
     };
+    const leave = () => {
+      pointed = null;
+    };
+    const click = () => {
+      if (onPick && pointed != null) onPick(pointed);
+    };
+    figure.addEventListener("input", remember);
+    figure.addEventListener("pointerdown", remember, true);
+    figure.addEventListener("pointerleave", leave);
     figure.addEventListener("click", click);
     if (onPick) figure.style.cursor = "pointer";
     ref.current?.replaceChildren(figure);
     return () => {
+      figure.removeEventListener("input", remember);
+      figure.removeEventListener("pointerdown", remember, true);
+      figure.removeEventListener("pointerleave", leave);
       figure.removeEventListener("click", click);
       figure.remove();
     };
