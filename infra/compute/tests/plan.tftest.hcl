@@ -43,6 +43,20 @@ run "vcpu_cap_rejects_runaway" {
   expect_failures = [var.max_vcpus]
 }
 
+run "hosts_are_at_most_16_vcpus" {
+  command = plan
+
+  # Up to 4 four-CPU assemblies per host, so the 100 GB disk cannot fill (a 48-vCPU host would
+  # run 12 at once).
+  assert {
+    condition = alltrue([
+      for t in aws_batch_compute_environment.spot.compute_resources[0].instance_type :
+      can(regex("^(c6i|c6a|c7i|m6i|m6a)\\.(xlarge|2xlarge|4xlarge)$", t))
+    ])
+    error_message = "Batch may only use xlarge to 4xlarge (4-16 vCPU) instances."
+  }
+}
+
 run "network_has_no_inbound_access" {
   command = plan
 

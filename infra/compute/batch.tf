@@ -77,7 +77,7 @@ resource "aws_batch_compute_environment" "spot" {
     min_vcpus           = 0
     desired_vcpus       = 0
     max_vcpus           = var.max_vcpus
-    instance_type       = var.instance_families
+    instance_type       = [for pair in setproduct(var.instance_families, var.instance_sizes) : join(".", pair)]
     instance_role       = local.instance_profile_arn
     subnets             = aws_subnet.public[*].id
     security_group_ids  = [aws_security_group.batch.id]

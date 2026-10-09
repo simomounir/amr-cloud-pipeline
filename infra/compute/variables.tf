@@ -20,6 +20,12 @@ variable "instance_families" {
   default     = ["c6i", "c6a", "c7i", "m6i", "m6a"]
 }
 
+variable "instance_sizes" {
+  description = "Allowed sizes (4-16 vCPU): at most 4 four-CPU assemblies share a host's 100 GB disk."
+  type        = list(string)
+  default     = ["xlarge", "2xlarge", "4xlarge"]
+}
+
 data "aws_caller_identity" "current" {}
 
 locals {
