@@ -91,3 +91,24 @@ footer { margin-top: 24px; color: var(--muted); font-size: 0.85rem; }
 /* Charts keep a readable size on phones and scroll sideways instead of shrinking (legends keep their own size). */
 .study figure svg[width="640"], .study figure svg[width="1280"] { min-width: 560px; }
 .study .panel { overflow-x: auto; }
+
+/* Home and Method */
+.home h2, .method h2 { margin: 28px 0 8px; font-size: 1.2rem; }
+.page-head .intro { max-width: 60ch; color: var(--ink); }
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 0; }
+.stat-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.stat-tile dt { color: var(--muted); font-size: 0.85rem; }
+.stat-tile dd { margin: 4px 0 0; font-size: 1.8rem; font-weight: 700; }
+.pipeline { margin: 0; color: var(--ink); }
+.pipeline svg { display: block; width: 100%; height: auto; }
+.pipeline-v { display: none !important; max-width: 220px; margin: 0 auto; }
+.how-steps { padding-left: 1.4rem; max-width: 70ch; }
+.study-cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.study-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.study-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.study-card p { margin: 0 0 8px; }
+.key-finding span { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+@media (max-width: 700px) {
+  .pipeline-h { display: none !important; }
+  .pipeline-v { display: block !important; }
+}

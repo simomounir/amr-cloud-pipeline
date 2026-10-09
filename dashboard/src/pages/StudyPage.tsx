@@ -5,6 +5,7 @@ import { FilterChips } from "../components/FilterChips";
 import { Heatmap } from "../components/Heatmap";
 import { IsolateTable } from "../components/IsolateTable";
 import { Panel } from "../components/Panel";
+import { Predates } from "../components/Predates";
 import { PeriodBars } from "../components/PeriodBars";
 import { RichText } from "../components/RichText";
 import { Timeline } from "../components/Timeline";
@@ -23,14 +24,6 @@ const CountryMap = lazy(() => import("../components/CountryMap").then((m) => ({ 
 const REPO = "https://github.com/simomounir/amr-cloud-pipeline";
 const pct = (share: number) => `${Math.round(share * 100)}%`;
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
-
-export function Predates() {
-  return (
-    <p className="study-note">
-      This study&apos;s release predates study pages; republish it with <code>publish-dataset.sh --study</code>.
-    </p>
-  );
-}
 
 /** Runs `load` whenever `key` changes; keeps the last result while the next one loads. */
 function useQuery<T>(conn: Connection, key: string, load: () => Promise<T>): { data?: T; error?: string } {

@@ -33,7 +33,7 @@ export function App() {
         </div>
       ) : (
         <>
-          {route.page === "home" && <Home studies={db.studies} infos={db.infos} />}
+          {route.page === "home" && <Home studies={db.studies} infos={db.infos} failed={db.failed} />}
           {route.page === "study" && <StudyPage
               conn={db.conn}
               study={route.study}
@@ -45,7 +45,7 @@ export function App() {
               theme={theme}
             />}
           {route.page === "explore" && <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />}
-          {route.page === "method" && <Method />}
+          {route.page === "method" && <Method studies={db.studies} infos={db.infos} />}
         </>
       )}
       {db && <Footer studies={db.studies} manifests={db.manifests} counts={db.counts} failed={db.failed} />}
