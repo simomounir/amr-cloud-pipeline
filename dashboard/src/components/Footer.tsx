@@ -1,3 +1,4 @@
+import { footerEntries } from "../data/footer";
 import type { Manifest } from "../data/manifest";
 import type { AnalysisCounts } from "../data/queries";
 import type { StudyEntry } from "../data/studies";
@@ -8,28 +9,32 @@ export function Footer({
   studies,
   manifests,
   counts,
+  failed,
 }: {
   studies: StudyEntry[];
   manifests: Record<string, Manifest>;
   counts: Record<string, AnalysisCounts>;
+  failed: { study: string; error: string }[];
 }) {
   return (
     <footer>
       <p>Public data; demonstrates a method, not surveillance findings.</p>
       <ul className="footer-studies">
-        {studies.map(({ study, release }) => {
-          const c = counts[study];
-          return (
-            <li key={study}>
-              <a href={`${REPO}/releases/tag/${encodeURIComponent(release)}`}>{release}</a> · built{" "}
-              {manifests[study].created_at.slice(0, 10)} ·{" "}
-              <span data-testid={`footer-counts-${study}`}>
-                {study}: {c.analysed} analysed{c.failed > 0 && ` · ${c.failed} failed analysis`}
+        {footerEntries(studies, manifests, counts, failed).map((e) =>
+          e.ok ? (
+            <li key={e.study}>
+              <a href={`${REPO}/releases/tag/${encodeURIComponent(e.release)}`}>{e.release}</a> · built {e.built} ·{" "}
+              <span data-testid={`footer-counts-${e.study}`}>
+                {e.study}: {e.counts.analysed} analysed{e.counts.failed > 0 && ` · ${e.counts.failed} failed analysis`}
               </span>{" "}
-              · schema {manifests[study].schema_version}
+              · schema {e.schema}
             </li>
-          );
-        })}
+          ) : (
+            <li key={e.study} role="status">
+              {e.study}: could not load — {e.error}
+            </li>
+          ),
+        )}
       </ul>
       <p>
         <a href={REPO}>source code</a>

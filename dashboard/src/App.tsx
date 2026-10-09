@@ -37,14 +37,9 @@ export function App() {
           {route.page === "study" && <StudyPage study={route.study} studies={db.studies} infos={db.infos} />}
           {route.page === "explore" && <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />}
           {route.page === "method" && <Method />}
-          {db.failed.length > 0 && (
-            <p className="study-note" role="status">
-              Could not load: {db.failed.map((f) => `${f.study} (${f.error})`).join("; ")}
-            </p>
-          )}
         </>
       )}
-      {db && <Footer studies={db.studies} manifests={db.manifests} counts={db.counts} />}
+      {db && <Footer studies={db.studies} manifests={db.manifests} counts={db.counts} failed={db.failed} />}
     </div>
   );
 }

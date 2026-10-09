@@ -74,3 +74,16 @@ test("an unknown study route says so and links home", async ({ page }) => {
   await page.getByRole("link", { name: "Back to the home page" }).click();
   await expect(page).toHaveURL(/#\/$/);
 });
+
+test("chart tooltips follow the theme in dark mode", async ({ page }) => {
+  await page.goto("./#/explore?study=study-a");
+  await expect(page.getByTestId("headline-isolates")).toHaveText("5");
+  await page.getByRole("button", { name: /Switch to dark mode/ }).click();
+  const figure = page.locator("figure").first();
+  await figure.locator("g[aria-label='bar'] rect").first().hover();
+  const tip = figure.locator("g[aria-label='tip'] path").first();
+  await expect(tip).toBeVisible();
+  const fill = await tip.evaluate((p) => getComputedStyle(p).fill);
+  expect(fill).not.toBe("rgb(255, 255, 255)");
+  expect(fill).toBe("rgb(22, 28, 35)");
+});
