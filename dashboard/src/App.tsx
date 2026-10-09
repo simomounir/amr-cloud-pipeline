@@ -39,6 +39,7 @@ export function App() {
               study={route.study}
               studies={db.studies}
               infos={db.infos}
+              hasCohort={db.hasCohort}
               failed={db.failed}
               filters={filters}
               setFilters={setFilters}
