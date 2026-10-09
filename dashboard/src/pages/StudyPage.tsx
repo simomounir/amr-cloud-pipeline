@@ -257,6 +257,12 @@ function HowWeKnow({ info }: { info: StudyInfo }) {
             Sequence type: {agreement.st.agree} of {agreement.st.total} genomes agree. Carbapenemase family:{" "}
             {agreement.carbapenemase_family.agree} of {agreement.carbapenemase_family.total} agree.
           </p>
+          {(agreement.not_in_reference ?? []).length > 0 && (
+            <p>
+              Not compared, because {reference.name} has no row for them:{" "}
+              {(agreement.not_in_reference ?? []).join(", ")}.
+            </p>
+          )}
           {agreement.disagreements.length > 0 && (
             <ul>
               {agreement.disagreements.map((d) => (

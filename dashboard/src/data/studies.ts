@@ -20,6 +20,7 @@ export interface Agreement {
   carbapenemase_family: { agree: number; total: number };
   family_matrix: { ours: string; reference: string; genomes: number }[];
   disagreements: Disagreement[];
+  not_in_reference?: string[];
 }
 export interface RunFacts {
   run_id: string;

@@ -40,8 +40,8 @@ values are ignored, so any link opens a valid page and can be shared.
 ## Theme
 
 Light and dark (`src/theme.ts`). The header toggle sets it and the choice is kept in the browser;
-without a stored choice it follows the system setting. Family colours are Okabe-Ito in fixed order (KPC, NDM, OXA-48-like, VIM, IMP,
-other, none), with separate dark-mode steps checked against the dark surface.
+without a stored choice it follows the system setting. Family colours are Okabe-Ito in fixed order (KPC, NDM, OXA-48-like,
+VIM, IMP, other, none), with separate dark-mode steps checked against the dark surface.
 
 ## Develop
 
