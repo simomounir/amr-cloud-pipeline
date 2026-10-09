@@ -19,13 +19,18 @@ export function PlotFigure({
     for (const svg of figure.tagName === "svg" ? [figure] : figure.querySelectorAll("svg")) {
       svg.style.setProperty("--plot-background", "var(--surface)");
     }
-    // Plot clears figure.value on the second pointerdown, before click, so remember the datum under the
-    // pointer from `input` events and from a capture-phase pointerdown that runs before Plot's handler.
+    // Plot pins the tooltip on pointerdown (and clears figure.value on the next one), after which pointermove
+    // is ignored, so the pinned datum is not the one under the pointer. Remember the datum from `input` events
+    // and stop pointerdown before Plot sees it: the tooltip then always follows the pointer and a click picks it.
     const valueOf = () => (figure as unknown as { value?: unknown }).value;
     let pointed: unknown = null;
     const remember = () => {
       const value = valueOf();
       if (value != null) pointed = value;
+    };
+    const unpinned = (event: Event) => {
+      remember();
+      event.stopPropagation();
     };
     const leave = () => {
       pointed = null;
@@ -34,14 +39,14 @@ export function PlotFigure({
       if (onPick && pointed != null) onPick(pointed);
     };
     figure.addEventListener("input", remember);
-    figure.addEventListener("pointerdown", remember, true);
+    figure.addEventListener("pointerdown", unpinned, true);
     figure.addEventListener("pointerleave", leave);
     figure.addEventListener("click", click);
     if (onPick) figure.style.cursor = "pointer";
     ref.current?.replaceChildren(figure);
     return () => {
       figure.removeEventListener("input", remember);
-      figure.removeEventListener("pointerdown", remember, true);
+      figure.removeEventListener("pointerdown", unpinned, true);
       figure.removeEventListener("pointerleave", leave);
       figure.removeEventListener("click", click);
       figure.remove();

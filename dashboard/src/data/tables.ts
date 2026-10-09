@@ -27,7 +27,8 @@ export function baseViewsSql(
 /** True when `url` serves a Parquet file (first bytes "PAR1"); a 404 or an HTML page at 200 is not. */
 export async function isParquetAt(url: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
   try {
-    const response = await fetchFn(url, { headers: { Range: "bytes=0-3" } });
+    // no-store: a ranged request answered from the HTTP cache can come back 206 with an empty body.
+    const response = await fetchFn(url, { headers: { Range: "bytes=0-3" }, cache: "no-store" });
     if (!response.ok) return false;
     const head = new Uint8Array(await response.arrayBuffer()).slice(0, 4);
     return new TextDecoder().decode(head) === "PAR1";

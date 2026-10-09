@@ -54,7 +54,7 @@ export function IsolateTable({ rows }: { rows: IsolateRow[] }) {
         <button onClick={() => download(toCsv(sorted as unknown as Record<string, unknown>[], COLUMNS), "isolates.csv")}>
           Download CSV
         </button>
-        <span>{rows.length} isolates</span>
+        <span data-testid="isolate-count">{rows.length} isolates</span>
       </div>
       <div className="table-scroll">
         <table>

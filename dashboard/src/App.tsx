@@ -34,7 +34,16 @@ export function App() {
       ) : (
         <>
           {route.page === "home" && <Home studies={db.studies} infos={db.infos} />}
-          {route.page === "study" && <StudyPage study={route.study} studies={db.studies} infos={db.infos} />}
+          {route.page === "study" && <StudyPage
+              conn={db.conn}
+              study={route.study}
+              studies={db.studies}
+              infos={db.infos}
+              failed={db.failed}
+              filters={filters}
+              setFilters={setFilters}
+              theme={theme}
+            />}
           {route.page === "explore" && <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />}
           {route.page === "method" && <Method />}
         </>

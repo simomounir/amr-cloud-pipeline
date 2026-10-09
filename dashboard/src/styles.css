@@ -72,3 +72,22 @@ footer { margin-top: 24px; color: var(--muted); font-size: 0.85rem; }
 .figure-frame summary { cursor: pointer; color: var(--muted); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; padding: 0; margin: 0 0 8px; font-size: 0.85rem; }
 .legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.study h2 { margin: 28px 0 12px; font-size: 1.25rem; }
+.study .page-head .question { font-size: 1.25rem; color: var(--ink); }
+.study .background { max-width: 70ch; }
+.finding { margin-bottom: 24px; }
+.finding h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.finding > p { max-width: 70ch; }
+.finding .figure-frame { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; overflow-x: auto; }
+.finding .figure-frame .note { margin: 8px 0 0; color: var(--muted); font-size: 0.85rem; }
+.sticky-chips { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-top: 4px; }
+.study .panel { margin-bottom: 16px; }
+.how-we-know { max-width: 70ch; }
+.how-we-know h3 { margin: 16px 0 4px; font-size: 1rem; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; margin: 0; }
+.facts div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.facts dt { color: var(--muted); font-size: 0.8rem; }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+/* Charts keep a readable size on phones and scroll sideways instead of shrinking (legends keep their own size). */
+.study figure svg[width="640"], .study figure svg[width="1280"] { min-width: 560px; }
+.study .panel { overflow-x: auto; }
