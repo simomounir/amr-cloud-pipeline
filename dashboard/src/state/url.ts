@@ -5,6 +5,15 @@ export type Route = { page: "home" } | { page: "study"; study: string } | { page
 const LISTS = { study: "studies", country: "countries", source: "sources", st: "sts", clone: "clones", period: "periods", family: "families", combo: "combos" } as const;
 type ListKey = (typeof LISTS)[keyof typeof LISTS];
 
+/** Decodes one URL component; returns null for malformed percent-encoding. */
+function safeDecode(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 function parseRoute(path: string): Route {
   const parts = path.replace(/^\/+/, "").split("/");
   if (parts[0] === "study" && /^[a-z0-9][a-z0-9-]*$/.test(parts[1] ?? "")) return { page: "study", study: parts[1] };
@@ -18,8 +27,12 @@ export function parseHash(hash: string): { route: Route; filters: Partial<Filter
   const filters: Partial<Filters> = {};
   for (const pair of query.split("&")) {
     const [key, raw = ""] = pair.split("=");
-    if (key in LISTS) {
-      const values = raw.split(",").filter(Boolean).map(decodeURIComponent);
+    if (Object.hasOwn(LISTS, key)) {
+      const values = raw
+        .split(",")
+        .filter(Boolean)
+        .map(safeDecode)
+        .filter((v): v is string => v !== null);
       if (values.length) filters[LISTS[key as keyof typeof LISTS] as ListKey] = values;
     } else if ((key === "from" || key === "to") && /^\d{4}$/.test(raw)) {
       filters[key === "from" ? "yearMin" : "yearMax"] = Number(raw);

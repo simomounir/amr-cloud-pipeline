@@ -25,4 +25,12 @@ describe("url state", () => {
     expect(parseHash("#/explore?from=abc&bogus=1&clone=").filters).toEqual({});
     expect(parseHash("#/study/").route).toEqual({ page: "home" });
   });
+  it("drops malformed percent-encoding instead of throwing", () => {
+    expect(() => parseHash("#/explore?country=%E0%A4%A&clone=%")).not.toThrow();
+    expect(parseHash("#/explore?country=%E0%A4%A&clone=%").filters).toEqual({});
+    expect(parseHash("#/explore?country=Germany,%E0%A4%A").filters.countries).toEqual(["Germany"]);
+  });
+  it("ignores inherited object keys", () => {
+    expect(parseHash("#/explore?constructor=x&__proto__=y&toString=z").filters).toEqual({});
+  });
 });
