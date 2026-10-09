@@ -1,0 +1,6 @@
+# Study 1. Cohort: select_cohort.py (AMRnet / Pathogenwatch snapshot 2025-08-05, pinned by
+# SHA-256); 4 clones x 3 periods x 13 genomes, one per country per cell, not selected on genes.
+title: Carbapenemases in high-risk K. pneumoniae clones over time
+question: Which carbapenemase families travel with ST11, ST147, ST258/512 and ST307, and how has that changed since 2012?
+organism: Klebsiella_pneumoniae
+max_isolates: 160
