@@ -59,3 +59,102 @@ run "runner_is_scoped_to_project_resources" {
     error_message = "Runner may pass only the job role."
   }
 }
+
+run "github_trust_is_main_branch_of_this_repo_only" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_openid_connect_provider.github.url == "https://token.actions.githubusercontent.com" && contains(aws_iam_openid_connect_provider.github.client_id_list, "sts.amazonaws.com")
+    error_message = "GitHub OIDC provider must target token.actions.githubusercontent.com with audience sts.amazonaws.com."
+  }
+  assert {
+    condition = alltrue([
+      for policy in [aws_iam_role.deployer.assume_role_policy, aws_iam_role.runner.assume_role_policy] : anytrue([
+        for s in jsondecode(policy).Statement :
+        s.Action == "sts:AssumeRoleWithWebIdentity" &&
+        s.Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:simomounir/amr-cloud-pipeline:ref:refs/heads/main" &&
+        s.Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com"
+      ])
+    ])
+    error_message = "Deployer and runner must trust only main of simomounir/amr-cloud-pipeline."
+  }
+  assert {
+    condition = alltrue([
+      for policy in [aws_iam_role.deployer.assume_role_policy, aws_iam_role.runner.assume_role_policy] : alltrue([
+        for s in jsondecode(policy).Statement :
+        s.Action != "sts:AssumeRoleWithWebIdentity" || !can(s.Condition.StringLike)
+      ])
+    ])
+    error_message = "GitHub trust must use exact StringEquals, never wildcards."
+  }
+}
+
+run "deployer_is_fenced_in" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement :
+      !contains(flatten([s.Action]), "*") && !anytrue([for a in flatten([s.Action]) : endswith(a, ":*")])
+    ])
+    error_message = "Deployer must not have wildcard actions."
+  }
+  # No IAM writes at all: a role it could create would outlive compute/ and could trust anyone.
+  assert {
+    condition = toset(flatten([
+      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement : [
+        for a in flatten([s.Action]) : a if startswith(a, "iam:")
+      ]
+    ])) == toset(["iam:PassRole"])
+    error_message = "The deployer's only IAM action is iam:PassRole."
+  }
+  assert {
+    condition = toset(flatten([
+      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement : flatten([s.Resource])
+      if contains(flatten([s.Action]), "iam:PassRole")
+    ])) == toset(["arn:aws:iam::123456789012:role/amr-batch-instance", "arn:aws:iam::123456789012:role/amr-batch-job"])
+    error_message = "The deployer may pass only the two Batch roles."
+  }
+}
+
+run "batch_roles_are_minimal" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_role.batch_instance.name == "amr-batch-instance" && aws_iam_instance_profile.batch_instance.name == "amr-batch-instance"
+    error_message = "Instance role and profile are named amr-batch-instance (compute/ refers to them by name)."
+  }
+  assert {
+    condition     = aws_iam_role_policy_attachment.batch_instance_ecs.policy_arn == "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+    error_message = "The instance role only needs the ECS managed policy."
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role.batch_job.assume_role_policy).Statement[0].Principal.Service == "ecs-tasks.amazonaws.com" && aws_iam_role.batch_job.name == "amr-batch-job"
+    error_message = "The job role amr-batch-job is assumable only by ECS tasks."
+  }
+  assert {
+    condition = alltrue([
+      for s in jsondecode(aws_iam_role_policy.batch_job_s3.policy).Statement : alltrue([
+        for r in flatten([s.Resource]) : startswith(r, "arn:aws:s3:::amr-pipeline-123456789012")
+      ])
+    ])
+    error_message = "Job S3 access must be limited to the project bucket."
+  }
+}
+
+run "deployer_can_build_inside_project_vpc_only" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for a in ["ec2:CreateSubnet", "ec2:CreateRouteTable", "ec2:CreateSecurityGroup"] : contains(
+        jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "Ec2CreateInProjectVpc")].Action, a
+      )
+    ])
+    error_message = "Creating subnets, route tables and security groups needs permission on the VPC too."
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "Ec2CreateInProjectVpc")].Condition.StringEquals["aws:ResourceTag/Project"] == "amr-cloud-pipeline"
+    error_message = "...but only inside the project's tagged VPC."
+  }
+}

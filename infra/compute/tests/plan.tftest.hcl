@@ -51,33 +51,26 @@ run "network_has_no_inbound_access" {
     error_message = "Batch security group must not allow inbound traffic."
   }
   assert {
-    condition     = length(aws_default_security_group.default.ingress) == 0 && length(aws_default_security_group.default.egress) == 0
-    error_message = "The VPC default security group must have no rules."
-  }
-  assert {
     condition     = length(aws_subnet.public) == 3
     error_message = "One public subnet per availability zone (3)."
   }
 }
 
-run "iam_is_scoped_to_project_resources" {
+run "uses_platform_roles" {
   command = plan
 
+  # The roles live in platform/; compute/ creates none, so its deployer needs no IAM writes.
   assert {
-    condition = alltrue([
-      for s in jsondecode(aws_iam_role_policy.job_s3.policy).Statement : alltrue([
-        for r in flatten([s.Resource]) : startswith(r, "arn:aws:s3:::amr-pipeline-123456789012")
-      ])
-    ])
-    error_message = "Job S3 access must be limited to the project bucket."
+    condition     = aws_batch_compute_environment.spot.compute_resources[0].instance_role == "arn:aws:iam::123456789012:instance-profile/amr-batch-instance"
+    error_message = "Hosts use the platform instance profile amr-batch-instance."
+  }
+  assert {
+    condition     = output.job_role_arn == "arn:aws:iam::123456789012:role/amr-batch-job"
+    error_message = "Jobs use the platform job role amr-batch-job."
   }
   assert {
     condition     = aws_launch_template.batch.metadata_options[0].http_put_response_hop_limit == 1
     error_message = "Containers must not reach instance metadata (hop limit 1)."
-  }
-  assert {
-    condition     = aws_iam_role_policy_attachment.instance_ecs.policy_arn == "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-    error_message = "The instance role only needs the ECS managed policy."
   }
 }
 

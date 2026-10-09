@@ -1,15 +1,11 @@
-# Long-lived identity: whoever runs Nextflow (the user via `aws login` now; GitHub OIDC in
-# Phase 4d). It must exist between runs, so it lives here rather than in compute/.
+# Long-lived identity: whoever runs Nextflow (the user via `aws login`, or GitHub Actions via
+# OIDC). It must exist between runs, so it lives here rather than in compute/.
 
 resource "aws_iam_role" "runner" {
   name = "amr-pipeline-runner"
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Action    = "sts:AssumeRole"
-      Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
-    }]
+    Version   = "2012-10-17"
+    Statement = [local.account_trust_statement, local.github_trust_statement]
   })
   max_session_duration = 43200
 }

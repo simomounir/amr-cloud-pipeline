@@ -6,8 +6,8 @@ identity, short-lived compute. Between runs only storage costs anything (pennies
 | Root | What | Lifetime |
 |---|---|---|
 | `bootstrap/` | S3 bucket `amr-tfstate-<account>` holding the other roots' state (versioned, encrypted, private) | created once, never destroyed |
-| `platform/` | S3 bucket `amr-pipeline-<account>` with its protections and lifecycle; IAM role `amr-pipeline-runner` (GitHub OIDC joins in 4d) | stays up between runs |
-| `compute/` | VPC (public subnets, no NAT), AWS Batch spot compute (0–32 vCPU), job queue, instance and job roles, log group, smoke job | apply → run → destroy |
+| `platform/` | S3 bucket `amr-pipeline-<account>` with its protections and lifecycle; IAM roles `amr-pipeline-runner`, `amr-compute-deployer`, `amr-batch-instance`, `amr-batch-job`; GitHub OIDC provider | stays up between runs |
+| `compute/` | VPC (public subnets, no NAT), AWS Batch spot compute (0–32 vCPU), job queue, log group, smoke job (no IAM) | apply → run → destroy |
 
 Budgets (`zero-spend`, `monthly-cap-25`) live outside Terraform so nothing here can remove them.
 Destroying `compute/` never touches the bucket or the runner role, so results stay protected
@@ -26,9 +26,15 @@ and GitHub can always assume the runner role to start the next run.
   the host (hop limit 1), so containers only see their own job role.
 - **S3** (platform): `work/<study>/<run>/` expires after 7 days; `results/<study>/<run>/` is
   kept. `prevent_destroy` and `force_destroy = false` keep results from being deleted by accident.
-- **IAM**, each scoped to this bucket and queue: instance role (ECS only; no S3), job role
-  (bucket read/write), Batch service-linked role, and `amr-pipeline-runner` in platform (submits
-  jobs, passes only the job role, reads/writes the bucket).
+- **IAM** (all in platform, each scoped to this bucket and queue): instance role (ECS only; no
+  S3), job role (bucket read/write), `amr-pipeline-runner` (submits jobs, passes only the job
+  role, reads/writes the bucket), plus Batch's service-linked role.
+- **Deployer** (`amr-compute-deployer`, platform): the identity that applies and destroys
+  `compute/`. It can only touch resources tagged `Project=amr-cloud-pipeline`, Batch resources
+  named `amr-*` and the `/amr/batch` log group. It has no IAM write permission at all: the
+  instance and job roles live in platform, and it may only hand those two to Batch
+  (`iam:PassRole`). So a compromised workflow cannot create a role that outlives the run.
+  The 32 vCPU cap is a Terraform setting, not an IAM limit; the budgets are the hard stop.
 - **Boot script fails closed**: if installing the AWS CLI fails, the host shuts down and Batch
   replaces it, instead of every job on it failing.
 
@@ -102,6 +108,35 @@ contains the account ID).
 
 At n=3 most of this is fixed overhead (instance boot and the AWS CLI install); expect the cost per
 genome to change at study scale. It is re-measured for every run (`runs/<study>/<run>/cost.json`).
+
+## Cloud runs from GitHub (OIDC)
+
+**Actions → Cloud run → Run workflow**, enter a study folder name (see [studies/](../studies/)).
+GitHub proves its identity to AWS with a short-lived OIDC token; no AWS keys are stored in
+GitHub. Both roles trust only workflows running on `main` of this repository, so forks, pull
+requests and other branches cannot assume them. The workflow takes the deployer for Terraform
+and the runner for Nextflow, then calls `run-on-batch.sh --ci`. The results, report and cost
+are uploaded as a workflow artifact, and a final step destroys compute even if the run failed.
+
+Repository secrets `AWS_DEPLOYER_ROLE_ARN` and `AWS_RUNNER_ROLE_ARN`
+(`terraform -chdir=infra/platform output`). Role ARNs are not secret, but secrets are masked in
+the public logs, which keeps the account ID out of them; the run files are scrubbed of it too
+before upload. Only `cloud-run.yml` and `janitor.yml` may request an OIDC token (a test checks
+every workflow), because AWS trusts any job on `main` of this repository.
+
+Safety nets: one cloud run at a time (`concurrency`), a 5.5-hour job limit (GitHub's limit is 6 h),
+`max_isolates` per study (at least 1), the 32 vCPU cap, budgets, and the daily **Janitor**
+workflow. The cleanup step destroys compute only if this run created it (a local run in progress
+is left alone) and releases a Terraform lock left by a cancel (`destroy-compute.sh`). The Janitor
+destroys compute (or a leftover project VPC) that changed over 6 hours ago while no Cloud run is
+in progress, and opens an issue either way. A local run longer than 6 hours that overlaps
+03:17 UTC would be destroyed by it.
+
+### Measured: rehearsal of the GitHub path, 3 isolates, full ENA reads (2026-10-09)
+
+Run locally with the same two roles and `--ci`: 20 resources applied by the deployer, 17 tasks,
+0 failed, results valid, 20 destroyed, nothing left. Wall time 21 min, 0.72 instance-hours,
+**$0.095 total, $0.032 per genome** (full-size reads instead of the small test files).
 
 ## Checks (CI, no AWS credentials)
 

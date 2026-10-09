@@ -12,7 +12,7 @@ output "job_queue" {
 }
 
 output "job_role_arn" {
-  value = aws_iam_role.job.arn
+  value = local.job_role_arn
 }
 
 output "smoke_job_definition" {

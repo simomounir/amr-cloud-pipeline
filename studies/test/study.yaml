@@ -1,0 +1,6 @@
+# Engineering check: the three test isolates with known answers
+# (ST13/KPC-2, ST147/NDM-5, ST23/no carbapenemase).
+title: Pipeline check on three known isolates
+question: Does a cloud run reproduce the known species, sequence types and carbapenemases?
+organism: Klebsiella_pneumoniae
+max_isolates: 3

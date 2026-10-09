@@ -8,16 +8,11 @@ data "aws_availability_zones" "available" {
 
 resource "aws_vpc" "main" {
   #checkov:skip=CKV2_AWS_11:VPC flow logs add CloudWatch cost; instances accept no inbound traffic
+  #checkov:skip=CKV2_AWS_12:The default security group is never used (Batch uses amr-batch) and the VPC is destroyed after each run; adopting it would require letting the deployer modify untagged security groups
   cidr_block           = "10.42.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags                 = { Name = "amr-vpc" }
-}
-
-resource "aws_default_security_group" "default" {
-  vpc_id  = aws_vpc.main.id
-  ingress = []
-  egress  = []
 }
 
 resource "aws_internet_gateway" "main" {

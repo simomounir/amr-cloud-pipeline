@@ -76,7 +76,7 @@ resource "aws_batch_compute_environment" "spot" {
     desired_vcpus       = 0
     max_vcpus           = var.max_vcpus
     instance_type       = var.instance_families
-    instance_role       = aws_iam_instance_profile.instance.arn
+    instance_role       = local.instance_profile_arn
     subnets             = aws_subnet.public[*].id
     security_group_ids  = [aws_security_group.batch.id]
     tags                = local.tags
@@ -126,7 +126,7 @@ resource "aws_batch_job_definition" "smoke" {
 
   container_properties = jsonencode({
     image      = "public.ecr.aws/amazonlinux/amazonlinux:2023"
-    jobRoleArn = aws_iam_role.job.arn
+    jobRoleArn = local.job_role_arn
     command = [
       "/bin/sh", "-c",
       "echo \"smoke ok $(date -u +%FT%TZ)\" | ${local.aws_cli_dir}/bin/aws s3 cp - s3://${local.bucket_name}/smoke/$AWS_BATCH_JOB_ID.txt",

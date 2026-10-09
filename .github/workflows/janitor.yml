@@ -1,0 +1,65 @@
+name: Janitor
+
+# Daily safety net: if compute exists while no cloud run is active, a run died without its
+# cleanup. Destroy compute and open an issue.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  actions: read
+
+# Not in the cloud-run concurrency group: GitHub keeps one pending job per group, so a queued
+# janitor could displace a queued cloud run. The active-run check below covers the overlap.
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  janitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOYER_ROLE_ARN }}
+          role-session-name: janitor-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      # Leftovers are a compute environment or a project VPC (a half-finished apply or destroy
+      # can leave the VPC without the compute environment). Compute applied in the last 6 hours
+      # is left alone: a local run-on-batch.sh may be using it (cloud runs are checked directly).
+      - name: Destroy orphaned compute
+        id: destroy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          envs=$(aws batch describe-compute-environments --compute-environments amr-spot --query 'length(computeEnvironments)' --output text)
+          vpcs=$(aws ec2 describe-vpcs --filters Name=tag:Project,Values=amr-cloud-pipeline --query 'length(Vpcs)' --output text)
+          if [ "$envs" = "0" ] && [ "$vpcs" = "0" ]; then echo "No compute exists. Nothing to do."; exit 0; fi
+          active=$(gh run list --workflow "Cloud run" --json status -q '[.[] | select(.status != "completed")] | length')
+          if [ "$active" != "0" ]; then echo "A cloud run is active; leaving compute alone."; exit 0; fi
+          account=$(aws sts get-caller-identity --query Account --output text)
+          applied=$(aws s3api head-object --bucket "amr-tfstate-$account" --key compute/terraform.tfstate --query LastModified --output text)
+          age_hours=$(( ($(date -u +%s) - $(date -u -d "$applied" +%s)) / 3600 ))
+          if [ "$age_hours" -lt 6 ]; then echo "Compute changed ${age_hours} h ago, maybe a local run; checking again tomorrow."; exit 0; fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          infra/scripts/destroy-compute.sh --unlock-after 60
+      # Report whether or not the destroy worked: a failed destroy needs a human even more.
+      - name: Open an issue
+        if: always() && steps.destroy.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.destroy.outcome }}
+        run: |
+          gh issue create --title "Janitor found orphaned AWS compute (destroy: $OUTCOME)" \
+            --body "Compute existed with no active Cloud run (janitor run ${{ github.run_id }}). Destroy outcome: $OUTCOME. Check the most recent Cloud run for why its cleanup did not finish."
