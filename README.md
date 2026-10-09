@@ -94,14 +94,20 @@ GitHub Actions page with one click, using OIDC (no stored AWS keys).
 
 ## Dashboard
 
-A static site on GitHub Pages ([dashboard/](dashboard/)) that loads the newest
-`dataset-*` Release and runs every query in the visitor's browser with DuckDB-WASM:
+A static site on GitHub Pages ([dashboard/](dashboard/)) that loads the `dataset-*` Release
+named in `dashboard/dataset.txt` and runs every query in the visitor's browser with DuckDB-WASM:
 headline numbers, carbapenemase families over time, the most common AMR elements, and
 an isolate table with CSV export. There is no server or database; hosting is free.
 
-Datasets are published with `scripts/publish-dataset.sh` from a workflow artifact; the
-first one comes from the `Seed dataset` workflow (30 public isolates processed on
-GitHub Actions, see [data/README.md](data/README.md)).
+Datasets are published with `scripts/publish-dataset.sh <run-id> [artifact]` from a workflow
+artifact (a `Seed dataset` artifact or a Cloud run's): it builds and validates the dataset,
+creates the Release and updates `dashboard/dataset.txt`; merging that commit deploys the site.
+(GitHub Pages identifies deployments by commit, so a Release alone would not redeploy.)
+
+Live: `dataset-2026-10-09`, study 1 ([studies/carbapenemase-clones](studies/carbapenemase-clones/RESULTS.md)):
+152 genomes of ST11, ST147, ST258/512 and ST307 analysed on AWS for $4.76, with 99% agreement
+with Pathogenwatch on sequence type and carbapenemase family. The first dataset (30 public
+isolates, GitHub Actions) is `dataset-2026-10-08`, see [data/README.md](data/README.md).
 
 ## Tests
 

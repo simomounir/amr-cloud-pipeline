@@ -1,11 +1,13 @@
 name: Pages
 
+# The site shows the dataset release named in dashboard/dataset.txt, so publishing a dataset is a
+# commit (scripts/publish-dataset.sh) and every deployed site matches a commit. Pages identifies a
+# deployment by its commit: a release-triggered redeploy of an unchanged commit kept serving the
+# old files (2026-10-09).
 on:
   push:
     branches: [main]
     paths: ["dashboard/**", ".github/workflows/pages.yml"]
-  release:
-    types: [published]
   workflow_dispatch:
 
 # Build runs npm ci (third-party code), so it gets no OIDC token: AWS trusts any token from
@@ -20,7 +22,6 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'dataset-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,13 +30,12 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
-      - name: Download latest dataset release
+      - name: Download the pinned dataset release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # dataset-YYYY-MM-DD tags sort by date; release createdAt is the tagged commit's date.
-          tag=$(gh release list --limit 100 --json tagName -q '[.[] | select(.tagName | startswith("dataset-"))] | sort_by(.tagName) | last | .tagName')
-          if [ -z "$tag" ] || [ "$tag" = "null" ]; then echo "::error::No dataset-* release found"; exit 1; fi
+          tag=$(tr -d '[:space:]' < dashboard/dataset.txt)
+          [[ "$tag" =~ ^dataset-[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::dashboard/dataset.txt must name a dataset-YYYY-MM-DD release"; exit 1; }
           mkdir -p dashboard/public/data
           gh release download "$tag" --dir dashboard/public/data --pattern '*.parquet' --pattern manifest.json
           echo "$tag" > dashboard/public/data/TAG

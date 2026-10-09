@@ -22,6 +22,11 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   await expect(page.getByText("Public data; demonstrates a method, not surveillance findings.")).toBeVisible();
   // F7's analysis failed: it is counted in the footer, not in any chart or table.
   await expect(page.getByTestId("footer-counts")).toHaveText("6 isolates analysed · 1 failed analysis");
+  // The dataset name links to its release notes (study, cost, agreement checks).
+  await expect(page.getByRole("link", { name: "dataset-fixture" })).toHaveAttribute(
+    "href",
+    "https://github.com/simomounir/amr-cloud-pipeline/releases/tag/dataset-fixture",
+  );
 });
 
 test("timeline axis says it counts per family", async ({ page }) => {
