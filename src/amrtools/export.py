@@ -37,7 +37,7 @@ def _int_or_null(value: str) -> int | None:
     return None if value in _NA else int(value)
 
 
-def _sample_records(rows, run) -> list[dict]:
+def _sample_records(rows, run, completed: set[str]) -> list[dict]:
     records = []
     for row in rows:
         year, month, precision = clean_date(row.get("collection_date"))
@@ -60,6 +60,8 @@ def _sample_records(rows, run) -> list[dict]:
                 "isolation_source_raw": clean_text(row.get("isolation_source")),
                 "source_category": categorize_source(row.get("isolation_source"), row.get("host")),
                 "host": clean_host(row.get("host")),
+                # Failed samples are dropped by the pipeline before the summary is merged.
+                "analysis_status": "complete" if row["sample"] in completed else "failed",
             }
             | run
         )
@@ -105,9 +107,11 @@ def export_run(
 ) -> dict[str, pa.Table]:
     run = {"run_id": run_id, "run_started_at": parse_started_at(run_started_at)}
     try:
-        samples = _sample_records(_read(samplesheet, ","), run)
+        summary_rows = _read(summary_tsv, "\t")
+        completed = {row["sample"] for row in summary_rows}
+        samples = _sample_records(_read(samplesheet, ","), run, completed)
         genes = _gene_records(_read(genes_tsv, "\t"), run)
-        summaries = _summary_records(_read(summary_tsv, "\t"), run)
+        summaries = _summary_records(summary_rows, run)
         tables = {
             "samples": build_table(samples, SAMPLES),
             "amr_genes": build_table(genes, AMR_GENES),
