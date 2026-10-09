@@ -27,5 +27,6 @@ At runtime the site reads `data/` next to `index.html`:
 - `manifest.json` (written by `amrtools build-dataset`)
 - `TAG` (dataset release tag, shown in the footer)
 
-`pages.yml` fills `data/` from the newest `dataset-*` GitHub Release when it deploys.
+`pages.yml` fills `data/` from the GitHub Release named in `dataset.txt` when it deploys
+(`scripts/publish-dataset.sh` updates that file).
 All SQL lives in `src/data/sql/`; user selections reach SQL only as `?` parameters.
