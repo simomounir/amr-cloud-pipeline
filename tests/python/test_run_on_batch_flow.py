@@ -8,6 +8,7 @@ puts prepared Parquet results into the fake S3 results folder.
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -80,6 +81,13 @@ def fake(tmp_path):
     for name, body in {"aws": FAKE_AWS, "terraform": FAKE_TF, "nextflow": FAKE_NF}.items():
         (bin_dir / name).write_text(body)
         (bin_dir / name).chmod(0o755)
+    # The installed amrtools of the interpreter running the tests (CI has no .venv), behind a
+    # wrapper that logs each call so the tests see the script really used it.
+    amrtools = Path(sys.executable).parent / "amrtools"
+    (bin_dir / "amrtools-logged").write_text(
+        f'#!/usr/bin/env bash\necho "amrtools $*" >> "$FAKE_LOG"\nexec "{amrtools}" "$@"\n'
+    )
+    (bin_dir / "amrtools-logged").chmod(0o755)
     sheet = tmp_path / "samples.csv"
     sheet.write_text("sample,fastq_1,fastq_2\n" + "".join(f"S{i},x,y\n" for i in range(1, 5)))
     env = {
@@ -90,6 +98,8 @@ def fake(tmp_path):
         "FAKE_RESULTS": str(tmp_path / "results"),
         "FAKE_UUID": UUID,
         "NXF": str(bin_dir / "nextflow"),
+        "AMRTOOLS": str(bin_dir / "amrtools-logged"),
+        "PYTHON": sys.executable,
         "RUNNER_AWS_ACCESS_KEY_ID": "x",
         "RUNNER_AWS_SECRET_ACCESS_KEY": "x",
         "RUNNER_AWS_SESSION_TOKEN": "x",
@@ -135,6 +145,7 @@ def test_one_failed_sample_still_succeeds_and_is_reported(fake):
     assert _s3(tmp, f"results/pytest-flow/{run_id}/_SUCCESS").exists()
     assert "1 of 4 samples failed: S4" in proc.stdout
     assert "1 of 4 samples failed: S4" in (tmp / "summary.md").read_text()
+    assert "amrtools run-status" in _calls(tmp)
 
 
 def test_too_many_failures_fail_the_run_without_success_marker(fake):
@@ -142,6 +153,7 @@ def test_too_many_failures_fail_the_run_without_success_marker(fake):
     _results(tmp, {"S3", "S4"})
     proc = _run(env, "--input", str(sheet))
     assert proc.returncode != 0
+    assert "more than 25%" in proc.stderr  # refused by run-status, not by a missing tool
     assert not list((tmp / "s3").rglob("_SUCCESS"))
 
 

@@ -22,6 +22,8 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 infra="$root/infra"
 TF="${TF:-terraform}"
 NXF="${NXF:-nextflow}"
+AMRTOOLS="${AMRTOOLS:-$root/.venv/bin/amrtools}"
+PYTHON="${PYTHON:-$root/.venv/bin/python}"
 log() { printf '\n== [%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
 study="" input="" extra_profile="" ci=0 max_samples="" resume=""
@@ -135,7 +137,7 @@ cleanup() {
         # After destroy every instance has a termination time, so each is priced for exactly
         # how long it ran (terminated instances stay visible for about an hour).
         log "cost report"
-        "$root/.venv/bin/python" "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
+        "$PYTHON" "$infra/scripts/cost_report.py" --region "$region" --since "$start" \
             --samples "$samples" --json "$local_dir/cost.json" || echo "cost report failed (see Cost Explorer tomorrow)"
     fi
     log "leftover check"
@@ -235,9 +237,9 @@ fi
 
 log "copy results and validate"
 as_runner aws s3 cp "$results/" "$local_dir/results/" --recursive --quiet
-"$root/.venv/bin/amrtools" validate "$local_dir/results/parquet"
+"$AMRTOOLS" validate "$local_dir/results/parquet"
 # Skipped samples are expected with public data; too many means the run itself went wrong.
-status_line=$("$root/.venv/bin/amrtools" run-status "$local_dir/results/parquet") || status_rc=$?
+status_line=$("$AMRTOOLS" run-status "$local_dir/results/parquet") || status_rc=$?
 echo "$status_line"
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "**$study/$run_id:** $status_line" >> "$GITHUB_STEP_SUMMARY"
 [ "${status_rc:-0}" = 0 ] || exit "$status_rc"
