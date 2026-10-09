@@ -13,7 +13,7 @@ in CI and on AWS. Uses public data; results demonstrate a method, not new survei
 
 Numbers as of study 1 ([carbapenemase clones](studies/carbapenemase-clones/RESULTS.md)):
 
-| Genomes analysed | Cost per genome | Agreement with Pathogenwatch |
+| Genomes analysed | Cost per analysed genome | Agreement with Pathogenwatch |
 |---|---|---|
 | 152 of 156 selected (4 failed assembly) | $0.031 ($4.76 for the run) | 99% on sequence type, 99% on carbapenemase family |
 
@@ -64,7 +64,7 @@ the Release and pins it in `dashboard/studies.json`; merging that commit deploys
 
 | Study | Question | Genomes (analysed / selected) | Cost | Headline finding | Results |
 |---|---|---|---|---|---|
-| `carbapenemase-clones` | Which carbapenemase families travel with ST11, ST147, ST258/512 and ST307, and how has that changed since 2012? | 152 / 156 | $4.76 ($0.031 per genome) | ST258/512 is always KPC. ST147 shifted to NDM and OXA-48-like (no carbapenemase 46% to 8%). ST307 is gaining carbapenemases (8% to 46%). | [RESULTS.md](studies/carbapenemase-clones/RESULTS.md) |
+| `carbapenemase-clones` | Which carbapenemase families travel with ST11, ST147, ST258/512 and ST307, and how has that changed since 2012? | 152 / 156 | $4.76 ($0.031 per analysed genome) | ST258/512 is always KPC. ST147 shifted to NDM and OXA-48-like (no carbapenemase 46% to 8%). ST307 is gaining carbapenemases (8% to 46%). | [RESULTS.md](studies/carbapenemase-clones/RESULTS.md) |
 
 The 156 genomes were selected from AMRnet/Pathogenwatch (snapshot 2025-08-05): 55 countries,
 1999-2022. The study's release is `dataset-carbapenemase-clones-2026-10-09`. A study is a
@@ -111,13 +111,12 @@ folders are still read. Check any folder with `amrtools validate <dir>`.
 | Python unit tests | `pytest` | every push |
 | Pipeline wiring (stub) and input validation | `nf-test test tests/ --tag stub,validation --profile test,docker` | every push |
 | Full tiny-dataset run | `nf-test test tests/ --tag full --profile test,docker` | push to main |
-| Dashboard: lint, types, SQL query tests, browser smoke test | `cd dashboard && npm test && npm run e2e` | every PR and push to main |
+| Dashboard: lint, types, vitest unit and SQL query tests, Playwright browser tests | `cd dashboard && npm test && npm run e2e` | every PR and push to main |
 
 Infrastructure checks in CI (no AWS credentials): `terraform fmt` and `validate` on every root,
 `terraform test` plan tests with a mocked provider (idle at 0 vCPU, vCPU cap, no inbound access,
-private bucket, scoped IAM), `tflint` and `checkov`. The dashboard also runs vitest unit tests
-and Playwright browser tests. A test checks that only `cloud-run.yml` and `janitor.yml` can
-request an OIDC token.
+private bucket, scoped IAM), `tflint` and `checkov`. A test checks that only `cloud-run.yml` and
+`janitor.yml` can request an OIDC token.
 
 **Review.** Each branch gets a whole-branch review before it merges, not only per-commit checks.
 
