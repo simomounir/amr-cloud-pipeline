@@ -159,6 +159,7 @@ def test_site_studies_are_pinned_in_git():
     assert not (ROOT / "dashboard" / "dataset.txt").exists()
     pages = _load("pages.yml")
     assert "release" not in pages[True]  # yaml reads the `on:` key as True
+    assert "dashboard/**" in pages[True]["push"]["paths"]
     steps = pages["jobs"]["build"]["steps"]
     download = next(s for s in steps if s.get("name", "").startswith("Download"))
     script = download["run"]

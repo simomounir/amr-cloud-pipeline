@@ -1,9 +1,9 @@
 name: Pages
 
 # The site shows the releases listed in dashboard/studies.json (one per study), so publishing a
-# study is a commit (scripts/publish-dataset.sh) and every deployed site matches a commit. Pages identifies a
-# deployment by its commit: a release-triggered redeploy of an unchanged commit kept serving the
-# old files (2026-10-09).
+# study is a commit (scripts/publish-dataset.sh) and every deployed site matches a commit.
+# Pages identifies a deployment by its commit: a release-triggered redeploy of an unchanged
+# commit kept serving the old files (2026-10-09).
 on:
   push:
     branches: [main]

@@ -22,7 +22,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) dry=1; shift ;;
         --notes) notes=$2; shift 2 ;;
-        --study) study=$2; shift 2 ;;
+        --study)
+            study=${2:-}
+            [[ "$study" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "error: --study must match ^[a-z0-9][a-z0-9-]*\$ (got '$study')" >&2; exit 2; }
+            shift 2 ;;
         *) break ;;
     esac
 done

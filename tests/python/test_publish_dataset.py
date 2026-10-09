@@ -108,3 +108,11 @@ def test_study_needs_a_story(tmp_path):
     cmd = ["bash", str(SCRIPT), "--study", "study-x", "123", "cloud-run-study-x-123"]
     proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=120)
     assert proc.returncode != 0 and "story.md" in proc.stderr
+
+
+def test_study_name_must_be_a_plain_slug(tmp_path):
+    env, _ = _study_setup(tmp_path)
+    for bad in ("../x", "Study", "-x", "a b"):
+        cmd = ["bash", str(SCRIPT), "--study", bad, "123", "cloud-run-study-x-123"]
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 2 and "--study" in proc.stderr, bad
