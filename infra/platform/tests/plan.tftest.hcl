@@ -72,7 +72,7 @@ run "github_trust_is_main_branch_of_this_repo_only" {
       for policy in [aws_iam_role.deployer.assume_role_policy, aws_iam_role.runner.assume_role_policy] : anytrue([
         for s in jsondecode(policy).Statement :
         s.Action == "sts:AssumeRoleWithWebIdentity" &&
-        s.Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:simomounir/amr-cloud-pipeline:ref:refs/heads/main" &&
+        s.Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:simomounir@18674957/amr-cloud-pipeline@1407768850:ref:refs/heads/main" &&
         s.Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com"
       ])
     ])

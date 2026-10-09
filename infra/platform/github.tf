@@ -1,6 +1,6 @@
 # GitHub Actions → AWS without stored keys. AWS verifies GitHub's OIDC token; only workflows on
-# main of var.github_repository can assume the deployer (Terraform for compute/) or the runner
-# (Nextflow). Each role is assumed directly from the web identity, so sessions are not
+# main of this repository (var.github_subject_prefix) can assume the deployer (Terraform for
+# compute/) or the runner (Nextflow). Each role is assumed directly from the web identity, so sessions are not
 # "chained" and can last a whole run.
 
 resource "aws_iam_openid_connect_provider" "github" {
