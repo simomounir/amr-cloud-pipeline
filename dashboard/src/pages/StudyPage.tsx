@@ -75,7 +75,7 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
     (clone: string, family: string) => {
       const f = latest.current;
       const again = same(f.clones, [clone]) && same(f.families, [family]);
-      setFilters({ ...f, clones: again ? [] : [clone], families: again ? [] : [family] });
+      setFilters({ ...f, includeIntrinsic: false, clones: again ? [] : [clone], families: again ? [] : [family] });
     },
     [setFilters],
   );
@@ -111,7 +111,7 @@ function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
     (clone: string, period: string, combo: string) => {
       const f = latest.current;
       const again = same(f.clones, [clone]) && same(f.periods, [period]) && same(f.combos, [combo]);
-      setFilters({ ...f, clones: again ? [] : [clone], periods: again ? [] : [period], combos: again ? [] : [combo] });
+      setFilters({ ...f, includeIntrinsic: false, clones: again ? [] : [clone], periods: again ? [] : [period], combos: again ? [] : [combo] });
     },
     [setFilters],
   );
@@ -150,7 +150,7 @@ function MapFigure({ conn, studyFilters, filters, setFilters }: FigureProps) {
   const onPick = useCallback(
     (country: string) => {
       const f = latest.current;
-      setFilters({ ...f, countries: same(f.countries, [country]) ? [] : [country] });
+      setFilters({ ...f, includeIntrinsic: false, countries: same(f.countries, [country]) ? [] : [country] });
     },
     [setFilters],
   );
@@ -306,7 +306,10 @@ function HowWeKnow({ info }: { info: StudyInfo }) {
 function LinkedViews({ conn, studyFilters, setFilters, theme }: Omit<FigureProps, "filters">) {
   const [includeIntrinsic, setIncludeIntrinsic] = useState(false);
   const { data } = useDashboard(conn, studyFilters, includeIntrinsic);
-  const clear = useCallback(() => setFilters({ ...EMPTY_FILTERS, hideQcWarnings: studyFilters.hideQcWarnings }), [setFilters, studyFilters.hideQcWarnings]);
+  const clear = useCallback(
+    () => setFilters({ ...EMPTY_FILTERS, hideQcWarnings: studyFilters.hideQcWarnings, includeIntrinsic: false }),
+    [setFilters, studyFilters.hideQcWarnings],
+  );
   if (!data) {
     return (
       <div className="skeleton" aria-busy="true">
@@ -384,12 +387,12 @@ function StudyBody({
         <input
           type="checkbox"
           checked={!filters.hideQcWarnings}
-          onChange={(e) => setFilters({ ...filters, hideQcWarnings: !e.target.checked })}
+          onChange={(e) => setFilters({ ...filters, includeIntrinsic: false, hideQcWarnings: !e.target.checked })}
         />{" "}
         Include genomes with QC warnings
       </label>
       <div className="sticky-chips">
-        <FilterChips filters={filters} onChange={setFilters} />
+        <FilterChips filters={filters} onChange={(f) => setFilters({ ...f, includeIntrinsic: false })} />
       </div>
       <h2>Linked views</h2>
       <LinkedViews conn={conn} studyFilters={studyFilters} setFilters={setFilters} theme={theme} />

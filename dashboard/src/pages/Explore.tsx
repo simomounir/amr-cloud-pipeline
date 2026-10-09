@@ -56,8 +56,11 @@ export function Explore({
         </Panel>
         <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
           <label className="panel-option">
-            <input type="checkbox" checked={filters.includeIntrinsic}
-            onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })} />{" "}
+            <input
+              type="checkbox"
+              checked={filters.includeIntrinsic}
+              onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })}
+            />{" "}
             Include intrinsic genes
           </label>
           {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}

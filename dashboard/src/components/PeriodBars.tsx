@@ -58,6 +58,7 @@ export function PeriodBars({
               fill: "combo",
               fillOpacity: (d: MixRow) => (isMulti(d.combo) ? 0.55 : 1) * (hasSelection && !isSelected(d) ? 0.35 : 1),
               stroke: (d: MixRow) => (isSelected(d) ? "var(--ink)" : outline(d.combo)),
+              strokeOpacity: (d: MixRow) => (isMulti(d.combo) ? 0.55 : 1) * (hasSelection && !isSelected(d) ? 0.35 : 1),
               strokeWidth: (d: MixRow) => (isSelected(d) ? 3 : distinguishingFamily(d.combo, combos) === null ? 2 : 1.5),
               ariaLabel: (d: MixRow) => `${d.clone} ${d.period} ${d.combo}`,
               title: (d: MixRow) => `${d.clone}, ${d.period}\n${d.combo}: ${d.genomes} genomes (${Math.round(d.share * 100)}%)`,
