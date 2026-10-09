@@ -22,8 +22,8 @@ run "idle_cost_is_zero" {
     error_message = "Desired vCPUs must start at zero."
   }
   assert {
-    condition     = aws_batch_compute_environment.spot.compute_resources[0].max_vcpus == 32
-    error_message = "Default vCPU cap must be 32."
+    condition     = aws_batch_compute_environment.spot.compute_resources[0].max_vcpus == 96
+    error_message = "Default vCPU cap must be 96 (the account's spot vCPU quota in eu-west-1)."
   }
   assert {
     condition     = aws_batch_compute_environment.spot.compute_resources[0].type == "SPOT"

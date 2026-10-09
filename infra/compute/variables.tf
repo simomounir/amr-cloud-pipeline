@@ -5,9 +5,9 @@ variable "region" {
 }
 
 variable "max_vcpus" {
-  description = "Hard cap on vCPUs Batch may run at once (cost guard)."
+  description = "Hard cap on vCPUs Batch may run at once (cost guard; equals the account's spot vCPU quota)."
   type        = number
-  default     = 32
+  default     = 96
   validation {
     condition     = var.max_vcpus >= 1 && var.max_vcpus <= 256
     error_message = "max_vcpus must be between 1 and 256."
