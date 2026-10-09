@@ -112,3 +112,32 @@ def test_zero_or_invalid_caps_are_refused(study_dir, cap, requested):
 
 def test_organism_must_be_a_plain_name(study_dir):
     assert _settings(study_dir("5", organism='Kleb"; rm -rf /')).returncode != 0
+
+
+def _run_step(tmp_path, resume: str) -> subprocess.CompletedProcess:
+    """Run the "Run on AWS Batch" step with a stand-in run-on-batch.sh that echoes its args."""
+    fake = tmp_path / "infra" / "scripts" / "run-on-batch.sh"
+    fake.parent.mkdir(parents=True)
+    fake.write_text('#!/usr/bin/env bash\necho "ARGS $*"\n')
+    fake.chmod(0o755)
+    steps = _load("cloud-run.yml")["jobs"]["run"]["steps"]
+    script = next(s for s in steps if s.get("name") == "Run on AWS Batch")["run"]
+    script = script.replace("${{ steps.study.outputs.max }}", "5")
+    env = {**os.environ, "STUDY": "s1", "RESUME": resume}
+    return subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env=env,
+                          capture_output=True, text=True)  # fmt: skip
+
+
+def test_new_run_passes_the_samplesheet_and_cap(tmp_path):
+    proc = _run_step(tmp_path, "")
+    assert "ARGS --ci --study s1 --input input/samples.csv --max-samples 5" in proc.stdout
+
+
+def test_resume_passes_only_the_run_id(tmp_path):
+    proc = _run_step(tmp_path, "20261009T002544Z")
+    assert "ARGS --ci --study s1 --resume 20261009T002544Z" in proc.stdout
+
+
+def test_malformed_resume_id_is_refused(tmp_path):
+    proc = _run_step(tmp_path, "latest; rm -rf /")
+    assert proc.returncode != 0 and "ARGS" not in proc.stdout

@@ -9,6 +9,11 @@
 #   local:  AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <csv> [--profile test] [--max-samples N]
 #   GitHub: infra/scripts/run-on-batch.sh --ci --study <name> --input <csv> [--max-samples N]
 #           with deployer credentials in AWS_* and runner credentials in RUNNER_AWS_*.
+#   resume: ... --study <name> --resume <run_id>   (within 7 days: work/ and cache/ expire)
+#
+# Every run keeps its samplesheet and Nextflow session id next to its results, and Nextflow's
+# cache in s3://<bucket>/cache/<study>/<run_id>/ (cloud cache), so a run cut short (timeout,
+# cancel, spot shortage) can be resumed from any machine without redoing finished tasks.
 # If AMR_COMPUTE_MARKER is set, that file is created just before compute is applied, so a
 # caller's own cleanup knows whether this run (and not some other) owns the compute.
 set -euo pipefail
@@ -19,7 +24,7 @@ TF="${TF:-terraform}"
 NXF="${NXF:-nextflow}"
 log() { printf '\n== [%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
-study="" input="" extra_profile="" ci=0 max_samples=""
+study="" input="" extra_profile="" ci=0 max_samples="" resume=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --study) study=$2; shift 2 ;;
@@ -27,6 +32,7 @@ while [ $# -gt 0 ]; do
         --profile) extra_profile=",$2"; shift 2 ;;
         --max-samples) max_samples=$2; shift 2 ;;
         --ci) ci=1; shift ;;
+        --resume) resume=$2; shift 2 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -53,21 +59,28 @@ as_runner() {
         "$@"
     fi
 }
-[ -n "$study" ] && [ -n "$input" ] || { echo "usage: $0 --study <name> --input <csv> [--profile <p>]" >&2; exit 2; }
+usage="usage: $0 --study <name> (--input <csv> [--max-samples N] | --resume <run_id>) [--profile <p>] [--ci]"
+[ -n "$study" ] || { echo "$usage" >&2; exit 2; }
 [[ "$study" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || { echo "study: lowercase letters, digits and '-', at most 40 characters" >&2; exit 2; }
-[ -f "$input" ] || { echo "input not found: $input" >&2; exit 2; }
-input=$(cd "$(dirname "$input")" && pwd)/$(basename "$input")
-run_id=$(date -u +%Y%m%dT%H%M%SZ)
+if [ -n "$resume" ]; then
+    [[ "$resume" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "--resume takes a run id like 20261009T002544Z" >&2; exit 2; }
+    [ -z "$input" ] && [ -z "$max_samples" ] || { echo "--resume reuses the run's own samplesheet; drop --input/--max-samples" >&2; exit 2; }
+    run_id=$resume
+else
+    [ -n "$input" ] || { echo "$usage" >&2; exit 2; }
+    [ -f "$input" ] || { echo "input not found: $input" >&2; exit 2; }
+    run_id=$(date -u +%Y%m%dT%H%M%SZ)
+fi
 local_dir="$root/runs/$study/$run_id"
 mkdir -p "$local_dir"
-if [ -n "$max_samples" ]; then
-    head -n $((max_samples + 1)) "$input" > "$local_dir/samplesheet.csv" # header + first N rows
-else
-    cp "$input" "$local_dir/samplesheet.csv"
+if [ -z "$resume" ]; then
+    if [ -n "$max_samples" ]; then
+        head -n $((max_samples + 1)) "$input" > "$local_dir/samplesheet.csv" # header + first N rows
+    else
+        cp "$input" "$local_dir/samplesheet.csv"
+    fi
 fi
 input="$local_dir/samplesheet.csv"
-samples=$(( $(grep -c . "$input") - 1 ))
-[ "$samples" -gt 0 ] || { echo "samplesheet has no samples" >&2; exit 2; }
 
 account=$(aws sts get-caller-identity --query Account --output text)
 for r in platform compute; do
@@ -77,6 +90,15 @@ done
 bucket=$("$TF" -chdir="$infra/platform" output -raw bucket)
 runner=$("$TF" -chdir="$infra/platform" output -raw runner_role_arn)
 region=$("$TF" -chdir="$infra/platform" output -raw region)
+results="s3://$bucket/results/$study/$run_id"
+session=""
+if [ -n "$resume" ]; then
+    as_runner aws s3 cp "$results/samplesheet.csv" "$input" --quiet 2> /dev/null &&
+        session=$(as_runner aws s3 cp "$results/session-id" - 2> /dev/null) && [ -n "$session" ] ||
+        { echo "cannot resume $study/$run_id: no samplesheet or session id saved for it" >&2; exit 1; }
+fi
+samples=$(( $(grep -c . "$input") - 1 ))
+[ "$samples" -gt 0 ] || { echo "samplesheet has no samples" >&2; exit 2; }
 start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 compute_applied=0
 
@@ -100,10 +122,19 @@ stop_nextflow() {
     pkill -KILL -f -- "--run_id $run_id" 2> /dev/null || true
 }
 
+# The session id is what `-resume` needs; saved first on exit, before the slow cleanup, so a
+# cancelled GitHub job (killed about 10 s after the cancel) still leaves it behind.
+save_session() {
+    local id
+    id=$(sed -n 's/.*Session UUID: \([0-9a-f-]*\).*/\1/p' "$local_dir/.nextflow.log" 2> /dev/null | head -1)
+    [ -n "$id" ] && echo "$id" | as_runner aws s3 cp - "$results/session-id" --quiet || true
+}
+
 cleanup() {
     local status=$? rc=0
     trap - EXIT
     trap '' INT TERM HUP # never interrupt destroy halfway
+    save_session
     stop_nextflow
     [ -n "${nf_config:-}" ] && rm -f "$nf_config"
     rm -rf "$local_dir/db-build"
@@ -142,6 +173,7 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 
 [ -n "${AMR_COMPUTE_MARKER:-}" ] && touch "$AMR_COMPUTE_MARKER"
+as_runner aws s3 cp "$input" "$results/samplesheet.csv" --quiet
 log "compute: apply"
 "$TF" -chdir="$infra/compute" apply -auto-approve -input=false
 compute_applied=1
@@ -167,11 +199,15 @@ log "nextflow on Batch as $runner (study=$study run=$run_id samples=$samples)"
 job_role=$("$TF" -chdir="$infra/compute" output -raw job_role_arn)
 printf "aws.batch.jobRole = '%s'\n" "$job_role" > "$local_dir/batch-role.config"
 nf_args=(run "$root" -profile "awsbatch$extra_profile" -c batch-role.config
+    -name "$study-$run_id-$(date -u +%H%M%S)"
     --input "$input" --study "$study" --run_id "$run_id"
     --amrfinder_db "s3://$bucket/refs/$db"
-    --outdir "s3://$bucket/results/$study/$run_id"
+    --outdir "$results"
     -work-dir "s3://$bucket/work/$study/$run_id"
     -with-trace trace.tsv -with-report report.html -ansi-log false)
+[ -n "$session" ] && nf_args+=(-resume "$session")
+# Cloud cache: the docs ask for a run name and an explicit session id instead of local history.
+export NXF_CLOUDCACHE_PATH="s3://$bucket/cache/$study/$run_id" NXF_IGNORE_RESUME_HISTORY=true
 if [ "$ci" = 1 ]; then
     # GitHub OIDC sessions are not chained; the runner credentials last the whole job.
     (cd "$local_dir" && as_runner env AWS_REGION="$region" "$NXF" "${nf_args[@]}")
@@ -200,8 +236,13 @@ CFG
 fi
 
 log "copy results and validate"
-as_runner aws s3 cp "s3://$bucket/results/$study/$run_id/" "$local_dir/results/" --recursive --quiet
+as_runner aws s3 cp "$results/" "$local_dir/results/" --recursive --quiet
 "$root/.venv/bin/amrtools" validate "$local_dir/results/parquet"
+# Skipped samples are expected with public data; too many means the run itself went wrong.
+status_line=$("$root/.venv/bin/amrtools" run-status "$local_dir/results/parquet") || status_rc=$?
+echo "$status_line"
+[ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "**$study/$run_id:** $status_line" >> "$GITHUB_STEP_SUMMARY"
+[ "${status_rc:-0}" = 0 ] || exit "$status_rc"
 # Marks a complete, validated run; partial results never carry it.
-date -u +%FT%TZ | as_runner aws s3 cp - "s3://$bucket/results/$study/$run_id/_SUCCESS"
+date -u +%FT%TZ | as_runner aws s3 cp - "$results/_SUCCESS"
 log "pipeline run succeeded"
