@@ -1,89 +1,50 @@
 import { useEffect, useState } from "react";
-import { FilterBar } from "./components/FilterBar";
 import { Footer } from "./components/Footer";
-import { Headline } from "./components/Headline";
-import { IsolateTable } from "./components/IsolateTable";
-import { Panel } from "./components/Panel";
-import { Timeline } from "./components/Timeline";
-import { TopElements } from "./components/TopElements";
-import type { Connection } from "./data/connection";
-import { openDashboardDb } from "./data/db";
-import { EMPTY_FILTERS } from "./data/filters";
-import type { Manifest } from "./data/manifest";
-import type { AnalysisCounts } from "./data/queries";
-import { useDashboard } from "./useDashboard";
+import { Header } from "./components/Header";
+import { type DashboardDb, openDashboardDb } from "./data/db";
+import { Explore } from "./pages/Explore";
+import { Home } from "./pages/Home";
+import { Method } from "./pages/Method";
+import { StudyPage } from "./pages/StudyPage";
+import { useHashState } from "./state/useHashState";
+import { useTheme } from "./theme";
 
 const DATA_URL = new URL("data/", document.baseURI).href;
 
 export function App() {
-  const [db, setDb] = useState<{ conn: Connection; manifest: Manifest; tag: string; counts: AnalysisCounts }>();
+  const [db, setDb] = useState<DashboardDb>();
   const [fatal, setFatal] = useState<string>();
+  const { route, filters, setFilters } = useHashState();
+  const { theme, toggle } = useTheme();
   useEffect(() => {
-    openDashboardDb(DATA_URL)
-      .then((d) => {
-        // Task 6 rebuilds the shell around every study; until then the footer shows the first one.
-        const first = d.studies[0];
-        setDb({ conn: d.conn, manifest: d.manifests[first.study], tag: first.release, counts: d.counts[first.study] });
-      })
-      .then(undefined, (e: Error) => setFatal(e.message));
+    openDashboardDb(DATA_URL).then(setDb, (e: Error) => setFatal(e.message));
   }, []);
-  const { filters, setFilters, includeIntrinsic, setIncludeIntrinsic, data, years } = useDashboard(db?.conn);
-  const clear = () => setFilters(EMPTY_FILTERS);
-  const empty = data?.headline.data?.isolates === 0;
 
   return (
     <div className="app">
-      <header>
-        <h1>AMR Explorer</h1>
-        <p>
-          Antimicrobial resistance in public <em>Klebsiella pneumoniae</em> genomes, queried in your browser.
-        </p>
-      </header>
+      {db && <Header studies={db.studies} infos={db.infos} route={route} theme={theme} onToggleTheme={toggle} />}
       {fatal ? (
         <p className="fatal" role="alert">
           {fatal}
         </p>
-      ) : !db || !data ? (
+      ) : !db ? (
         <div className="skeleton" aria-busy="true">
           Loading dataset…
         </div>
       ) : (
-        <div className="layout">
-          <FilterBar
-            filters={filters}
-            onChange={setFilters}
-            years={years}
-            optionRows={{ countries: data.countries.data, sources: data.sources.data, sts: data.sts.data }}
-          />
-          <main>
-            <Panel title="Overview" error={data.headline.error}>
-              {data.headline.data && <Headline data={data.headline.data} />}
-              <p className="note">
-                Public genomes over-represent resistant, outbreak-associated isolates; these percentages describe this
-                dataset, not prevalence.
-              </p>
-            </Panel>
-            <Panel title="Resistance over time" error={data.timeline.error} empty={empty} onClear={clear}>
-              {data.timeline.data && <Timeline rows={data.timeline.data} />}
-            </Panel>
-            <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
-              <label className="panel-option">
-                <input
-                  type="checkbox"
-                  checked={includeIntrinsic}
-                  onChange={(e) => setIncludeIntrinsic(e.target.checked)}
-                />{" "}
-                Include intrinsic genes
-              </label>
-              {data.elements.data && <TopElements rows={data.elements.data} />}
-            </Panel>
-            <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
-              {data.isolates.data && <IsolateTable rows={data.isolates.data} />}
-            </Panel>
-          </main>
-        </div>
+        <>
+          {route.page === "home" && <Home studies={db.studies} infos={db.infos} />}
+          {route.page === "study" && <StudyPage study={route.study} studies={db.studies} infos={db.infos} />}
+          {route.page === "explore" && <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />}
+          {route.page === "method" && <Method />}
+          {db.failed.length > 0 && (
+            <p className="study-note" role="status">
+              Could not load: {db.failed.map((f) => `${f.study} (${f.error})`).join("; ")}
+            </p>
+          )}
+        </>
       )}
-      {db && <Footer manifest={db.manifest} tag={db.tag} counts={db.counts} />}
+      {db && <Footer studies={db.studies} manifests={db.manifests} counts={db.counts} />}
     </div>
   );
 }

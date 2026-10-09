@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Connection } from "../src/data/connection";
 import { EMPTY_FILTERS } from "../src/data/filters";
-import { analysisCounts, headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
+import { analysisCounts, countryCounts, familyHeatmap, periodMix, headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
 import { createViews } from "../src/data/views";
 import { fixtureConnection } from "./nodeConnection";
 
@@ -139,5 +139,27 @@ describe("analysisCounts", () => {
 
   it("counts across all studies when none is given", async () => {
     expect(await analysisCounts(conn)).toEqual({ analysed: 8, failed: 1 });
+  });
+});
+
+describe("study figures", () => {
+  const S = { ...EMPTY_FILTERS, studies: ["study-a"], hideQcWarnings: false };
+  it("heatmap: share of genomes per clone carrying each family", async () => {
+    const cells = await familyHeatmap(conn, S, false);
+    expect(cells.find((c) => c.clone === "ST147" && c.family === "NDM")).toEqual({ clone: "ST147", period: "all", family: "NDM", genomes: 2, carriers: 2, share: 1 });
+    expect(cells.find((c) => c.clone === "ST147" && c.family === "OXA-48-like")?.share).toBe(0.5);
+  });
+  it("heatmap by period splits the denominator", async () => {
+    const cells = await familyHeatmap(conn, S, true);
+    expect(cells.filter((c) => c.clone === "ST11").map((c) => c.period).sort()).toEqual(["2013-2017", "2018 or later"]);
+  });
+  it("period mix: exclusive combos that sum to 1 per clone and period", async () => {
+    const rows = await periodMix(conn, S);
+    const st147 = rows.filter((r) => r.clone === "ST147" && r.period === "2018 or later");
+    expect(st147.map((r) => [r.combo, r.share])).toEqual([["NDM", 0.5], ["NDM+OXA-48-like", 0.5]]);
+  });
+  it("countries with their clones and families", async () => {
+    const rows = await countryCounts(conn, S);
+    expect(rows.find((r) => r.country === "India")).toEqual({ country: "India", genomes: 2, clones: "ST11, ST147", families: "KPC, NDM, OXA-48-like" });
   });
 });

@@ -1,9 +1,12 @@
 import type { Connection } from "./connection";
 import { type Filters, type ListFilter, toWhere } from "./filters";
+import countriesSql from "./sql/countries.sql?raw";
 import headlineSql from "./sql/headline.sql?raw";
 import topElementsSql from "./sql/top_elements.sql?raw";
+import heatmapSql from "./sql/heatmap.sql?raw";
 import isolatesSql from "./sql/isolates.sql?raw";
 import optionsSql from "./sql/options.sql?raw";
+import periodMixSql from "./sql/period_mix.sql?raw";
 import timelineSql from "./sql/timeline.sql?raw";
 import yearsSql from "./sql/years.sql?raw";
 
@@ -77,6 +80,40 @@ export function isolateRows(conn: Connection, filters: Filters): Promise<Isolate
 
 export function options(conn: Connection, filters: Filters, key: OptionKey): Promise<OptionRow[]> {
   return run<OptionRow>(conn, optionsSql.replace("{{column}}", OPTION_COLUMNS[key]), filters, key);
+}
+
+export interface HeatCell {
+  clone: string;
+  period: string;
+  family: string;
+  genomes: number;
+  carriers: number;
+  share: number;
+}
+export interface MixRow {
+  clone: string;
+  period: string;
+  combo: string;
+  genomes: number;
+  share: number;
+}
+export interface CountryRow {
+  country: string;
+  genomes: number;
+  clones: string | null;
+  families: string;
+}
+
+export function familyHeatmap(conn: Connection, filters: Filters, byPeriod: boolean): Promise<HeatCell[]> {
+  return run<HeatCell>(conn, heatmapSql.replace("{{period}}", byPeriod ? "period" : "'all'"), filters);
+}
+
+export function periodMix(conn: Connection, filters: Filters): Promise<MixRow[]> {
+  return run<MixRow>(conn, periodMixSql, filters);
+}
+
+export function countryCounts(conn: Connection, filters: Filters): Promise<CountryRow[]> {
+  return run<CountryRow>(conn, countriesSql, filters);
 }
 
 export interface AnalysisCounts {

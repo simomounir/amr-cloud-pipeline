@@ -2,9 +2,9 @@ import type { Filters } from "../data/filters";
 import { EMPTY_FILTERS } from "../data/filters";
 import type { OptionKey, OptionRow } from "../data/queries";
 
-type ListFilter = Exclude<OptionKey, "studies">; // the study filter arrives with the new shell
+type ListFilter = OptionKey;
 
-const LABELS: Record<ListFilter, string> = { countries: "Country", sources: "Isolation source", sts: "Sequence type" };
+const LABELS: Record<ListFilter, string> = { studies: "Study", countries: "Country", sources: "Isolation source", sts: "Sequence type" };
 
 export function FilterBar({
   filters,
