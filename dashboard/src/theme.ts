@@ -18,6 +18,33 @@ export function familyColour(family: string, theme: Theme = "light"): string {
   return (theme === "dark" ? DARK : LIGHT)[family] ?? (theme === "dark" ? DARK.none : LIGHT.none);
 }
 
+// The heatmap's one-hue ramp (low -> high share), per mode. Only the ends are used as range; checked
+// with validate_palette.js (its categorical band/chroma checks do not apply to a ramp; lightness is
+// monotonic and the ends are far apart, dE ~52). Cells carry their % as text, so contrast of the
+// low end against the surface is relieved by labels, cell outlines and the table view.
+export const SEQUENTIAL: Record<Theme, [string, string]> = {
+  light: ["#eef4fb", "#0b4f94"],
+  dark: ["#1b2630", "#7cc0ff"],
+};
+
+/** The earliest family (in FAMILY_ORDER) that a carbapenemase combo such as "IMP+VIM" contains. */
+export function comboFamily(combo: string): string {
+  const parts = combo.split("+");
+  return FAMILY_ORDER.find((f) => parts.includes(f)) ?? "other";
+}
+
+/** Combos sorted by their families in FAMILY_ORDER (single before multi within a family). */
+export function sortCombos(combos: Iterable<string>): string[] {
+  const rank = (c: string) => c.split("+").map((f) => FAMILY_ORDER.indexOf(f)).sort((a, b) => a - b);
+  return [...new Set(combos)].sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    for (let i = 0; i < Math.max(ra.length, rb.length); i++) {
+      if ((ra[i] ?? -1) !== (rb[i] ?? -1)) return (ra[i] ?? -1) - (rb[i] ?? -1);
+    }
+    return a.localeCompare(b);
+  });
+}
+
 const KEY = "amr-theme";
 
 function initial(): Theme {
