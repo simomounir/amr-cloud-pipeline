@@ -9,6 +9,10 @@ function read() {
 
 export function useHashState() {
   const [state, setState] = useState(read);
+  const latest = useRef(state);
+  useEffect(() => {
+    latest.current = state;
+  }, [state]);
   const routeKey = useRef(JSON.stringify(state.route));
   useEffect(() => {
     const onChange = () => {
@@ -26,10 +30,8 @@ export function useHashState() {
     window.location.hash = toHash(route, filters);
   }, []);
   const setFilters = useCallback((filters: Filters) => {
-    setState((s) => {
-      window.history.replaceState(null, "", toHash(s.route, filters));
-      return { ...s, filters };
-    });
+    window.history.replaceState(null, "", toHash(latest.current.route, filters));
+    setState((s) => ({ ...s, filters }));
   }, []);
   return { ...state, navigate, setFilters };
 }

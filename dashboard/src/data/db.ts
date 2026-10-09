@@ -36,9 +36,7 @@ export interface DashboardDb {
   counts: Record<string, AnalysisCounts>;
 }
 
-export async function openDashboardDb(dataUrl: string): Promise<DashboardDb> {
-  if (typeof WebAssembly === "undefined") throw new DashboardError("This dashboard needs a current browser (WebAssembly).");
-  const listed = await loadStudies(dataUrl);
+async function startDuckDb(): Promise<{ db: duckdb.AsyncDuckDB; conn: Connection }> {
   const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
   const workerUrl = URL.createObjectURL(
     new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" }),
@@ -46,17 +44,29 @@ export async function openDashboardDb(dataUrl: string): Promise<DashboardDb> {
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), new Worker(workerUrl));
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
-  const conn = wasmConnection(await db.connect());
+  return { db, conn: wasmConnection(await db.connect()) };
+}
+
+export async function openDashboardDb(dataUrl: string): Promise<DashboardDb> {
+  if (typeof WebAssembly === "undefined") throw new DashboardError("This dashboard needs a current browser (WebAssembly).");
+  const listed = await loadStudies(dataUrl);
+  // DuckDB-WASM starts on first use, so "no studies" and "all failed" errors show without loading it.
+  let started: ReturnType<typeof startDuckDb> | undefined;
+  const duck = () => (started ??= startDuckDb());
   const fileFor = (study: string, table: string) => `${study}__${table}.parquet`;
   // One broken study (bad manifest, study.json or table) is reported in `failed`; the rest load.
   const { loaded, failed } = await loadAvailableStudies(dataUrl, listed, {
-    register: (study, table, url) =>
-      db.registerFileURL(fileFor(study, table), url, duckdb.DuckDBDataProtocol.HTTP, false),
+    register: async (study, table, url) => {
+      const { db } = await duck();
+      await db.registerFileURL(fileFor(study, table), url, duckdb.DuckDBDataProtocol.HTTP, false);
+    },
     probe: async (study, table) => {
+      const { conn } = await duck();
       await conn.query(`SELECT 1 FROM read_parquet('${fileFor(study, table)}') LIMIT 0`);
     },
   });
   if (loaded.length === 0) throw new DashboardError(failed[0]?.error ?? "No studies are published yet.");
+  const { conn } = await duck();
   const studies = loaded.map(({ study }) => listed.find((s) => s.study === study) as StudyEntry);
   const withCohort = new Set(loaded.filter((l) => l.hasCohort).map((l) => l.study));
   for (const sql of baseViewsSql(

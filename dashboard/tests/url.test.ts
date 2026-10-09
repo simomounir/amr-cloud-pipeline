@@ -56,4 +56,24 @@ describe("url state", () => {
   it("ignores inherited object keys", () => {
     expect(parseHash("#/explore?constructor=x&__proto__=y&toString=z").filters).toEqual({});
   });
+  it("accepts years 1900-2100 only", () => {
+    expect(parseHash("#/explore?from=1899&to=2101").filters).toEqual({});
+    expect(parseHash("#/explore?from=1900&to=2100").filters).toEqual({ yearMin: 1900, yearMax: 2100 });
+  });
+  it("drops from and to when from is after to, keeps them otherwise", () => {
+    expect(parseHash("#/explore?from=2020&to=2010").filters).toEqual({});
+    expect(parseHash("#/explore?from=2010&to=2010").filters).toEqual({ yearMin: 2010, yearMax: 2010 });
+    expect(parseHash("#/explore?from=2020&to=1800").filters).toEqual({ yearMin: 2020 });
+  });
+  it("writes #/study/<x> only for a slug-valid study", () => {
+    expect(toHash({ page: "study", study: "s1" })).toBe("#/study/s1");
+    expect(toHash({ page: "study", study: "../x?y" })).toBe("#/");
+    expect(toHash({ page: "study", study: "Bad Name" }, { clones: ["ST1"] })).toBe("#/?clone=ST1");
+  });
+  it("keeps the intrinsic-genes option in the URL", () => {
+    expect(toHash({ page: "explore" }, { includeIntrinsic: true })).toBe("#/explore?intrinsic=1");
+    expect(parseHash("#/explore?intrinsic=1").filters.includeIntrinsic).toBe(true);
+    expect(parseHash("#/explore?intrinsic=0").filters).toEqual({});
+    expect(toHash({ page: "explore" }, { includeIntrinsic: false })).toBe("#/explore");
+  });
 });

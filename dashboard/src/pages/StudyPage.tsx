@@ -64,7 +64,11 @@ function FigureError({ error }: { error: string }) {
 function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: FigureProps) {
   const [byPeriod, setByPeriod] = useState(false);
   const read = useMemo(() => figureFilters(studyFilters), [studyFilters]);
-  const { data, error } = useQuery(conn, JSON.stringify([read, byPeriod]), () => q.familyHeatmap(conn, read, byPeriod));
+  const { data: loaded, error } = useQuery(conn, JSON.stringify([read, byPeriod]), async () => ({
+    cells: await q.familyHeatmap(conn, read, byPeriod),
+    n: await q.cohortGenomeCount(conn, read, byPeriod),
+  }));
+  const data = loaded?.cells;
   const latest = useRef(filters);
   latest.current = filters;
   const onPick = useCallback(
@@ -83,7 +87,7 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
     }),
     [data],
   );
-  const n = useMemo(() => sumOnce(data ?? [], (c) => `${c.clone}|${c.period}`, (c) => c.genomes), [data]);
+  const n = loaded?.n ?? 0;
   if (error) return <FigureError error={error} />;
   return (
     <FigureFrame figure="heatmap" title="Carbapenemase family by clone" caption={`n = ${n} genomes`} table={table}>
@@ -186,12 +190,6 @@ function AgreementFigure({ info, theme }: { info: StudyInfo; theme: Theme }) {
       <AgreementMatrix agreement={agreement} referenceName={referenceName} theme={theme} />
     </FigureFrame>
   );
-}
-
-function sumOnce<T>(rows: T[], key: (row: T) => string, value: (row: T) => number): number {
-  const seen = new Map<string, number>();
-  for (const r of rows) seen.set(key(r), value(r));
-  return [...seen.values()].reduce((a, b) => a + b, 0);
 }
 
 interface FigureProps {

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { FilterBar } from "../components/FilterBar";
 import { Headline } from "../components/Headline";
 import { IsolateTable } from "../components/IsolateTable";
@@ -21,9 +20,8 @@ export function Explore({
   setFilters: (f: Filters) => void;
   theme: Theme;
 }) {
-  const [includeIntrinsic, setIncludeIntrinsic] = useState(false);
-  const { data, years } = useDashboard(conn, filters, includeIntrinsic);
-  const clear = () => setFilters(EMPTY_FILTERS);
+  const { data, years } = useDashboard(conn, filters, filters.includeIntrinsic);
+  const clear = () => setFilters({ ...EMPTY_FILTERS, includeIntrinsic: filters.includeIntrinsic });
   if (!data) {
     return (
       <div className="skeleton" aria-busy="true">
@@ -58,7 +56,8 @@ export function Explore({
         </Panel>
         <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
           <label className="panel-option">
-            <input type="checkbox" checked={includeIntrinsic} onChange={(e) => setIncludeIntrinsic(e.target.checked)} />{" "}
+            <input type="checkbox" checked={filters.includeIntrinsic}
+            onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })} />{" "}
             Include intrinsic genes
           </label>
           {data.elements.data && <TopElements rows={data.elements.data} />}

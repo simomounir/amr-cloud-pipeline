@@ -1,6 +1,9 @@
 export const BASE_TABLES = ["samples", "amr_genes", "run_summary", "cohort"] as const;
 const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
+/** True for a study name safe to put in URLs and SQL (lowercase letters, digits, hyphens). */
+export const isStudySlug = (name: unknown): name is string => typeof name === "string" && SLUG.test(name);
+
 const EMPTY_COHORT =
   "CREATE OR REPLACE VIEW cohort AS SELECT NULL::VARCHAR AS study, NULL::VARCHAR AS sample, NULL::VARCHAR AS clone, " +
   "NULL::VARCHAR AS period, NULL::SMALLINT AS year, NULL::VARCHAR AS country, NULL::VARCHAR AS ref_st, " +
@@ -15,7 +18,7 @@ export function baseViewsSql(
   fileFor: (study: string, table: string) => string,
   hasCohort: (study: string) => boolean = () => true,
 ): string[] {
-  for (const study of studies) if (!SLUG.test(study)) throw new Error(`Invalid study name: ${study}`);
+  for (const study of studies) if (!isStudySlug(study)) throw new Error(`Invalid study name: ${study}`);
   return BASE_TABLES.map((table) => {
     const included = table === "cohort" ? studies.filter(hasCohort) : studies;
     if (included.length === 0) return EMPTY_COHORT;

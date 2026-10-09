@@ -35,7 +35,9 @@ export function comboFamily(combo: string): string {
 
 /** Combos sorted by their families in FAMILY_ORDER (single before multi within a family). */
 export function sortCombos(combos: Iterable<string>): string[] {
-  const rank = (c: string) => c.split("+").map((f) => FAMILY_ORDER.indexOf(f)).sort((a, b) => a - b);
+  const other = FAMILY_ORDER.indexOf("other");
+  const position = (f: string) => (FAMILY_ORDER.includes(f) ? FAMILY_ORDER.indexOf(f) : other); // as comboFamily
+  const rank = (c: string) => c.split("+").map(position).sort((a, b) => a - b);
   return [...new Set(combos)].sort((a, b) => {
     const ra = rank(a), rb = rank(b);
     for (let i = 0; i < Math.max(ra.length, rb.length); i++) {
@@ -63,15 +65,13 @@ export function useTheme(): { theme: Theme; toggle(): void } {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
   const toggle = useCallback(() => {
-    setTheme((t) => {
-      const next = t === "dark" ? "light" : "dark";
-      try {
-        window.localStorage.setItem(KEY, next);
-      } catch {
-        // not persisted; the choice still applies for this visit
-      }
-      return next;
-    });
-  }, []);
+    const next = theme === "dark" ? "light" : "dark";
+    try {
+      window.localStorage.setItem(KEY, next);
+    } catch {
+      // not persisted; the choice still applies for this visit
+    }
+    setTheme(next);
+  }, [theme]);
   return { theme, toggle };
 }

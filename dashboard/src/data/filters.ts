@@ -11,6 +11,8 @@ export interface Filters {
   yearMax: number | null;
   carbapenemaseOnly: boolean;
   hideQcWarnings: boolean;
+  /** Display option of the elements chart (not a row filter): include intrinsic genes. */
+  includeIntrinsic: boolean;
 }
 
 export type ListFilter = "studies" | "countries" | "sources" | "sts" | "clones" | "periods" | "combos";
@@ -28,6 +30,7 @@ export const EMPTY_FILTERS: Filters = {
   yearMax: null,
   carbapenemaseOnly: false,
   hideQcWarnings: true,
+  includeIntrinsic: false,
 };
 
 const LIST_COLUMNS: Record<ListFilter, string> = {

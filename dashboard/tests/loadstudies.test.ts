@@ -49,3 +49,20 @@ it("a missing manifest fails only that study", async () => {
   expect(result.loaded).toEqual([]);
   expect(result.failed[0].error).toContain("manifest.json");
 });
+
+it("a study name that is not a slug fails before any URL or SQL is built", async () => {
+  const urls: string[] = [];
+  const spy = (async (input: string | URL | Request) => {
+    urls.push(String(input));
+    return new Response("", { status: 404 });
+  }) as typeof fetch;
+  const hooks = { register: async () => undefined, probe: async () => undefined };
+  const result = await loadAvailableStudies("https://x.org/data/", [
+    { study: "../evil", release: "r" },
+    { study: "a'b", release: "r" },
+  ], hooks, spy);
+  expect(result.loaded).toEqual([]);
+  expect(result.failed.map((f) => f.study)).toEqual(["../evil", "a'b"]);
+  expect(result.failed[0].error).toMatch(/Invalid study name/);
+  expect(urls).toEqual([]);
+});

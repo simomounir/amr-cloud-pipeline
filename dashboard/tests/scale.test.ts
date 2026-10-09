@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { EMPTY_FILTERS } from "../src/data/filters";
 import { headline, topElements, isolateRows, options, timeline } from "../src/data/queries";
+import { baseViewsSql } from "../src/data/tables";
 import { createViews } from "../src/data/views";
 import { emptyConnection } from "./nodeConnection";
 
@@ -22,8 +23,9 @@ it("every panel query finishes within a second at 10,000 isolates", async () => 
            'AMR' AS element_subtype, 'BETA-LACTAM' AS drug_class,
            CASE WHEN i % 9 = 0 THEN 'CARBAPENEM' ELSE 'CEPHALOSPORIN' END AS drug_subclass
     FROM range(440000) t(i)`);
-  await conn.query(`CREATE TABLE cohort AS SELECT NULL::VARCHAR AS study, NULL::VARCHAR AS sample, NULL::VARCHAR AS clone,
-    NULL::VARCHAR AS period, NULL::SMALLINT AS year WHERE FALSE`);
+  // No study has a cohort: the shared empty cohort view (the other statements need Parquet files).
+  const [cohortView] = baseViewsSql(["scale"], () => "", () => false).filter((sql) => sql.includes("VIEW cohort"));
+  await conn.query(cohortView);
   await createViews(conn);
   for (const query of [headline, timeline, topElements, isolateRows]) {
     const start = performance.now();

@@ -1,6 +1,6 @@
 import { loadManifest, type Manifest } from "./manifest";
 import { loadStudyInfo, type StudyEntry, type StudyInfo } from "./studies";
-import { BASE_TABLES, isParquetAt } from "./tables";
+import { BASE_TABLES, isParquetAt, isStudySlug } from "./tables";
 
 export interface LoadedStudy {
   study: string;
@@ -35,6 +35,10 @@ export async function loadAvailableStudies(
   const failed: FailedStudy[] = [];
   for (const { study } of listed) {
     try {
+      // Checked before the name is used in a URL or in SQL.
+      if (!isStudySlug(study)) {
+        throw new Error(`Invalid study name in studies.json: ${JSON.stringify(study)} (use lowercase letters, digits and hyphens)`);
+      }
       const manifest = await loadManifest(new URL(`${study}/`, dataUrl).href, fetchFn);
       let info: StudyInfo | null;
       try {

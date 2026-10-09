@@ -80,7 +80,7 @@ export function FilterBar({
         />{" "}
         Hide QC warnings
       </label>
-      <button onClick={() => onChange(EMPTY_FILTERS)}>Clear filters</button>
+      <button onClick={() => onChange({ ...EMPTY_FILTERS, includeIntrinsic: filters.includeIntrinsic })}>Clear filters</button>
     </aside>
   );
 }

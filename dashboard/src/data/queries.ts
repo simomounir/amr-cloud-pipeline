@@ -127,6 +127,20 @@ export async function noCountryCount(conn: Connection, filters: Filters): Promis
   return row.n;
 }
 
+/**
+ * Genomes the heatmap and period figures show: those the filters select that have a clone (and, by
+ * period, a period). A direct count, not derived from the per-cell denominators.
+ */
+export async function cohortGenomeCount(conn: Connection, filters: Filters, byPeriod: boolean): Promise<number> {
+  const where = toWhere(filters);
+  const [row] = await conn.query<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM isolates ${where.sql ? `${where.sql} AND` : "WHERE"} clone IS NOT NULL` +
+      (byPeriod ? " AND period IS NOT NULL" : ""),
+    where.params,
+  );
+  return row.n;
+}
+
 export interface AnalysisCounts {
   analysed: number;
   failed: number;
@@ -135,11 +149,13 @@ export interface AnalysisCounts {
 // A sample whose analysis failed has metadata but no run_summary row (schema 1.2.0 also marks it
 // in samples.analysis_status; counting this way works for older datasets too).
 export async function analysisCounts(conn: Connection, study?: string): Promise<AnalysisCounts> {
-  const where = study === undefined ? "" : "WHERE study = ?";
+  // The study is bound once (NULL = all studies).
   const [row] = await conn.query<{ analysed: number; failed: number }>(
-    `SELECT (SELECT count(*) FROM run_summary ${where})::INTEGER AS analysed,
-            ((SELECT count(*) FROM samples ${where}) - (SELECT count(*) FROM run_summary ${where}))::INTEGER AS failed`,
-    study === undefined ? [] : [study, study, study],
+    `WITH p AS (SELECT ?::VARCHAR AS study),
+          a AS (SELECT count(*) AS n FROM run_summary r, p WHERE p.study IS NULL OR r.study = p.study),
+          s AS (SELECT count(*) AS n FROM samples m, p WHERE p.study IS NULL OR m.study = p.study)
+     SELECT a.n::INTEGER AS analysed, (s.n - a.n)::INTEGER AS failed FROM a, s`,
+    [study ?? null],
   );
   return { analysed: row.analysed, failed: row.failed };
 }

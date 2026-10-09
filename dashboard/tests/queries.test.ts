@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Connection } from "../src/data/connection";
 import { EMPTY_FILTERS } from "../src/data/filters";
-import { analysisCounts, countryCounts, familyHeatmap, periodMix, headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
+import { analysisCounts, cohortGenomeCount, countryCounts, familyHeatmap, periodMix, headline, topElements, isolateRows, options, timeline, yearBounds } from "../src/data/queries";
 import { createViews } from "../src/data/views";
 import { fixtureConnection } from "./nodeConnection";
 
@@ -152,6 +152,13 @@ describe("study figures", () => {
   it("heatmap by period splits the denominator", async () => {
     const cells = await familyHeatmap(conn, S, true);
     expect(cells.filter((c) => c.clone === "ST11").map((c) => c.period).sort()).toEqual(["2013-2017", "2018 or later"]);
+  });
+  it("counts the genomes the cohort figures show, directly", async () => {
+    for (const byPeriod of [false, true]) {
+      const perCell = new Map((await familyHeatmap(conn, S, byPeriod)).map((c) => [`${c.clone}|${c.period}`, c.genomes]));
+      expect(await cohortGenomeCount(conn, S, byPeriod)).toBe([...perCell.values()].reduce((a, b) => a + b, 0));
+    }
+    expect(await cohortGenomeCount(conn, S, false)).toBe(6);
   });
   it("period mix: exclusive combos that sum to 1 per clone and period", async () => {
     const rows = await periodMix(conn, S);
