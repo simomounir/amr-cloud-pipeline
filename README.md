@@ -72,6 +72,8 @@ question plus a list of ENA accessions, see [studies/README.md](studies/README.m
 interpretation text on each study page is hand-written in `studies/<name>/story.md`; the site
 never generates it.
 
+The first dataset, `dataset-2026-10-08` (30 public isolates processed on GitHub Actions, see [data/README.md](data/README.md)), remains available as a release.
+
 ## What the pipeline does
 
 ```
@@ -216,5 +218,5 @@ Merge that commit to deploy. The dashboard is documented in [dashboard/README.md
 Done: local pipeline and CI, versioned Parquet schema, static dashboard, AWS Batch with Terraform,
 one-click cloud runs from GitHub, dashboard with study pages, study 1.
 
-Next: study 3, on convergence of carbapenem resistance and hypervirulence (Kleborate resistance and virulence scores by clone and year). Later: a
+Next study: convergence of carbapenem resistance and hypervirulence. Kleborate resistance and virulence scores by clone and year, on a new public cohort (not yet in `studies/`). Later: a
 metagenome mode on the same platform. Other species are out of scope for now.
