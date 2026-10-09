@@ -8,7 +8,7 @@ permissions:
 
 env:
   NXF_VER: "26.04.6"
-  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.3.0
+  AMRTOOLS_IMAGE: ghcr.io/simomounir/amrtools:0.4.0
 
 jobs:
   run:
