@@ -114,7 +114,8 @@ genome to change at study scale. It is re-measured for every run (`runs/<study>/
 **Actions → Cloud run → Run workflow**, enter a study folder name (see [studies/](../studies/)).
 GitHub proves its identity to AWS with a short-lived OIDC token; no AWS keys are stored in
 GitHub. Both roles trust only workflows running on `main` of this repository, so forks, pull
-requests and other branches cannot assume them. The workflow takes the deployer for Terraform
+requests and other branches cannot assume them. The repository uses GitHub's immutable OIDC
+subjects (`repo:owner@<id>/name@<id>:...`), so a renamed and re-registered name never matches. The workflow takes the deployer for Terraform
 and the runner for Nextflow, then calls `run-on-batch.sh --ci`. The results, report and cost
 are uploaded as a workflow artifact, and a final step destroys compute even if the run failed.
 

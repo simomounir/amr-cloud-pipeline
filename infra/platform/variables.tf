@@ -4,10 +4,15 @@ variable "region" {
   default     = "eu-west-1"
 }
 
-variable "github_repository" {
-  description = "owner/name of the only GitHub repository allowed to assume project roles."
+variable "github_subject_prefix" {
+  description = <<-EOT
+    OIDC subject prefix of the only GitHub repository allowed to assume project roles. The
+    repository uses GitHub's immutable subjects (owner@owner_id/repo@repo_id), so a renamed and
+    re-registered owner or repository can never match. Shown by:
+    gh api repos/<owner>/<repo>/actions/oidc/customization/sub (sub_claim_prefix).
+  EOT
   type        = string
-  default     = "simomounir/amr-cloud-pipeline"
+  default     = "repo:simomounir@18674957/amr-cloud-pipeline@1407768850"
 }
 
 data "aws_caller_identity" "current" {}
@@ -37,7 +42,7 @@ locals {
     Condition = {
       StringEquals = {
         "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/main"
+        "token.actions.githubusercontent.com:sub" = "${var.github_subject_prefix}:ref:refs/heads/main"
       }
     }
   }
