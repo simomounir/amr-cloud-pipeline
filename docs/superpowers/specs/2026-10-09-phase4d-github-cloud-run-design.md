@@ -47,3 +47,26 @@ Date: 2026-10-09. Approved in conversation. Builds on 4b/4c.
 3. Workflows `cloud-run.yml`, `janitor.yml`.
 4. Live: apply platform (show plan first), local `--ci` run as deployer/runner.
 5. Review, PR, merge (user OK), dispatch `Cloud run` on main.
+
+## Changes after the final review (2026-10-09)
+The whole-branch review found what the live rehearsal could not exercise; fixed before merge:
+- **No IAM writes for the deployer.** It could create `amr-batch-*` roles with any trust policy
+  (e.g. another account), which would outlive `compute/`. `amr-batch-instance`, its instance
+  profile and `amr-batch-job` moved to `platform/batch_roles.tf`; the deployer's only IAM action
+  is `iam:PassRole` on those two roles. The permissions boundary is no longer needed and is gone
+  (items 1 and 2 above are superseded on this point).
+- **OIDC tokens only where needed.** The trust `sub` matches any job on `main`, so the Pages
+  build job (runs `npm ci`) lost `id-token: write`; a pytest checks that only `cloud-run.yml`
+  and `janitor.yml` jobs (or jobs with a deployment environment) can request one.
+- **Cleanup only destroys its own compute.** `run-on-batch.sh` touches `AMR_COMPUTE_MARKER` just
+  before apply; the workflow's final destroy runs only if that file exists. The Janitor also
+  skips compute whose state changed under 6 hours ago and checks for leftover project VPCs.
+- **Stale state locks.** `infra/scripts/destroy-compute.sh` releases a lock older than
+  `--unlock-after` minutes (0 in the cloud run, 60 in the Janitor) before destroying; the
+  Janitor opens its issue whether or not the destroy worked.
+- **Caps.** `max_isolates` (study and dispatch input) must be ≥ 1 and is read as decimal;
+  `--max-samples 0` is refused. `organism` must match `^[A-Za-z_]+$` and reaches the shell via
+  `env`.
+- **Account ID out of public output.** Role ARNs are repository secrets (masked in logs),
+  `mask-aws-account-id: true`, and run files are scrubbed before the artifact upload
+  (`batch-role.config` excluded).

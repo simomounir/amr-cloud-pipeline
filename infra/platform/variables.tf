@@ -18,17 +18,16 @@ locals {
   bucket_name = "amr-pipeline-${local.account_id}"
   bucket_arn  = "arn:aws:s3:::${local.bucket_name}"
   # Compute-root names, referenced by ARN so this root does not depend on compute existing.
-  queue_arn     = "arn:aws:batch:${var.region}:${local.account_id}:job-queue/amr-queue"
-  jobs_arn      = "arn:aws:batch:${var.region}:${local.account_id}:job/*"
-  job_defs      = ["arn:aws:batch:${var.region}:${local.account_id}:job-definition/nf-*", "arn:aws:batch:${var.region}:${local.account_id}:job-definition/amr-*"]
-  job_role_arn  = "arn:aws:iam::${local.account_id}:role/amr-batch-job"
-  log_group_arn = "arn:aws:logs:${var.region}:${local.account_id}:log-group:/amr/batch:*"
-  state_bucket  = "amr-tfstate-${local.account_id}"
+  queue_arn    = "arn:aws:batch:${var.region}:${local.account_id}:job-queue/amr-queue"
+  jobs_arn     = "arn:aws:batch:${var.region}:${local.account_id}:job/*"
+  job_defs     = ["arn:aws:batch:${var.region}:${local.account_id}:job-definition/nf-*", "arn:aws:batch:${var.region}:${local.account_id}:job-definition/amr-*"]
+  job_role_arn = "arn:aws:iam::${local.account_id}:role/amr-batch-job"
+  # amr-batch-instance and amr-batch-job are created in batch_roles.tf.
+  instance_role_arn = "arn:aws:iam::${local.account_id}:role/amr-batch-instance"
+  log_group_arn     = "arn:aws:logs:${var.region}:${local.account_id}:log-group:/amr/batch:*"
+  state_bucket      = "amr-tfstate-${local.account_id}"
   # Built from names so policies are fully known at plan time.
   github_oidc_arn = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
-  boundary_arn    = "arn:aws:iam::${local.account_id}:policy/amr-batch-boundary"
-  batch_roles     = "arn:aws:iam::${local.account_id}:role/amr-batch-*"
-  batch_profiles  = "arn:aws:iam::${local.account_id}:instance-profile/amr-batch-*"
   ecs_policy_arn  = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
   # Only workflows on main of this repository; forks, PRs and other branches are refused.
   github_trust_statement = {

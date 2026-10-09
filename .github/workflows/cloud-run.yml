@@ -1,7 +1,8 @@
 name: Cloud run
 
 # One-click run of a study on AWS Batch. Only workflows on main can assume the AWS roles
-# (OIDC trust in infra/platform), and only the repository owner can dispatch them.
+# (OIDC trust in infra/platform); anyone with write access to the repository can dispatch it.
+# Role ARNs are secrets only so that GitHub masks the account ID in the (public) logs.
 on:
   workflow_dispatch:
     inputs:
@@ -61,11 +62,13 @@ jobs:
           test -f "$dir/study.yaml" -a -f "$dir/accessions.txt" || { echo "::error::$dir needs study.yaml and accessions.txt"; exit 1; }
           organism=$(sed -n 's/^organism: *//p' "$dir/study.yaml")
           cap=$(sed -n 's/^max_isolates: *//p' "$dir/study.yaml")
-          [[ "$cap" =~ ^[0-9]+$ ]] || { echo "::error::study.yaml needs max_isolates"; exit 1; }
-          max=$cap
+          [[ "$organism" =~ ^[A-Za-z_]+$ ]] || { echo "::error::study.yaml needs one organism (letters and _)"; exit 1; }
+          # Caps are positive whole numbers (10# reads 08 as eight, not as octal).
+          [[ "$cap" =~ ^[0-9]+$ ]] && [ $((10#$cap)) -gt 0 ] || { echo "::error::study.yaml needs max_isolates >= 1"; exit 1; }
+          max=$((10#$cap))
           if [ -n "$REQUESTED" ]; then
-            [[ "$REQUESTED" =~ ^[0-9]+$ ]] || { echo "::error::max_isolates must be a number"; exit 1; }
-            [ "$REQUESTED" -lt "$cap" ] && max=$REQUESTED
+            [[ "$REQUESTED" =~ ^[0-9]+$ ]] && [ $((10#$REQUESTED)) -gt 0 ] || { echo "::error::max_isolates must be a number >= 1"; exit 1; }
+            [ $((10#$REQUESTED)) -lt "$max" ] && max=$((10#$REQUESTED))
           fi
           echo "organism=$organism" >> "$GITHUB_OUTPUT"
           echo "max=$max" >> "$GITHUB_OUTPUT"
@@ -74,15 +77,18 @@ jobs:
       - name: Samplesheet from ENA
         env:
           STUDY: ${{ inputs.study }}
+          ORGANISM: ${{ steps.study.outputs.organism }}
         run: |
           mkdir -p input
           .venv/bin/amrtools fetch-samples --accession-file "studies/$STUDY/accessions.txt" \
-            --organism "${{ steps.study.outputs.organism }}" --out input/samples.csv
+            --organism "$ORGANISM" --out input/samples.csv
 
       - name: AWS credentials (compute deployer)
+        id: deployer
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOYER_ROLE_ARN }}
+          mask-aws-account-id: true
           role-session-name: cloud-run-${{ github.run_id }}
           role-duration-seconds: 21600
           aws-region: ${{ env.AWS_REGION }}
@@ -90,7 +96,8 @@ jobs:
         id: runner
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_RUNNER_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_RUNNER_ROLE_ARN }}
+          mask-aws-account-id: true
           role-session-name: nf-${{ github.run_id }}
           role-duration-seconds: 21600
           aws-region: ${{ env.AWS_REGION }}
@@ -103,24 +110,37 @@ jobs:
           RUNNER_AWS_SECRET_ACCESS_KEY: ${{ steps.runner.outputs.aws-secret-access-key }}
           RUNNER_AWS_SESSION_TOKEN: ${{ steps.runner.outputs.aws-session-token }}
           STUDY: ${{ inputs.study }}
+          AMR_COMPUTE_MARKER: ${{ runner.temp }}/compute-owned
         run: |
           infra/scripts/run-on-batch.sh --ci --study "$STUDY" --input input/samples.csv \
             --max-samples "${{ steps.study.outputs.max }}"
 
+      # The repository is public, so artifacts are too: keep the account ID out of them.
+      - name: Remove the account ID from the run files
+        if: always() && steps.deployer.outcome == 'success'
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          [ -d runs ] || exit 0
+          grep -rlI --exclude='.nextflow*' --exclude-dir=.nextflow "$account" runs | while read -r f; do
+            sed -i "s/$account/<account>/g" "$f"
+          done
       - name: Upload run (dataset, report, cost)
-        if: always()
+        if: always() && steps.study.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cloud-run-${{ inputs.study }}-${{ github.run_id }}
           path: |
             runs/
             !runs/**/.nextflow*
+            !runs/**/batch-role.config
           if-no-files-found: warn
 
       # Belt and braces: the run script destroys compute itself; this also covers a killed script.
+      # Only if this run created compute: when the script refused because compute already
+      # existed (a local run in progress), that compute is not ours to destroy. A cancel during
+      # apply or destroy leaves Terraform's lock behind; the concurrency group means it is ours.
       - name: Make sure compute is destroyed
-        if: always()
+        if: always() && steps.deployer.outcome == 'success'
         run: |
-          account=$(aws sts get-caller-identity --query Account --output text)
-          terraform -chdir=infra/compute init -input=false -backend-config="bucket=amr-tfstate-$account" > /dev/null
-          terraform -chdir=infra/compute destroy -auto-approve -input=false
+          if [ ! -f "$RUNNER_TEMP/compute-owned" ]; then echo "This run created no compute."; exit 0; fi
+          infra/scripts/destroy-compute.sh --unlock-after 0

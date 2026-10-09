@@ -26,14 +26,13 @@ locals {
   project     = "amr-cloud-pipeline"
   account_id  = data.aws_caller_identity.current.account_id
   bucket_name = "amr-pipeline-${local.account_id}"
-  bucket_arn  = "arn:aws:s3:::${local.bucket_name}"
   queue_name  = "amr-queue"
   log_group   = "/amr/batch"
   aws_cli_dir = "/opt/aws-cli"
-  # The platform root's runner policy passes this role by its fixed name.
-  job_role_name = "amr-batch-job"
-  # Created by infra/platform; every amr-batch-* role must carry it.
-  boundary_arn = "arn:aws:iam::${local.account_id}:policy/amr-batch-boundary"
+  # Created by infra/platform (batch_roles.tf); compute/ creates no IAM, so its deployer needs
+  # only iam:PassRole on these.
+  instance_profile_arn = "arn:aws:iam::${local.account_id}:instance-profile/amr-batch-instance"
+  job_role_arn         = "arn:aws:iam::${local.account_id}:role/amr-batch-job"
   tags = {
     Project   = local.project
     ManagedBy = "terraform"

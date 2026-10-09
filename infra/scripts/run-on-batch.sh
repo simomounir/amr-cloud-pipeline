@@ -9,6 +9,8 @@
 #   local:  AWS_PROFILE=admin infra/scripts/run-on-batch.sh --study <name> --input <csv> [--profile test] [--max-samples N]
 #   GitHub: infra/scripts/run-on-batch.sh --ci --study <name> --input <csv> [--max-samples N]
 #           with deployer credentials in AWS_* and runner credentials in RUNNER_AWS_*.
+# If AMR_COMPUTE_MARKER is set, that file is created just before compute is applied, so a
+# caller's own cleanup knows whether this run (and not some other) owns the compute.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -17,7 +19,7 @@ TF="${TF:-terraform}"
 NXF="${NXF:-nextflow}"
 log() { printf '\n== [%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
-study="" input="" extra_profile="" ci=0 max_samples=0
+study="" input="" extra_profile="" ci=0 max_samples=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --study) study=$2; shift 2 ;;
@@ -34,7 +36,11 @@ if [ "$ci" = 1 ]; then
 else
     export AWS_PROFILE="${AWS_PROFILE:-admin}"
 fi
-[[ "$max_samples" =~ ^[0-9]+$ ]] || { echo "--max-samples must be a number" >&2; exit 2; }
+if [ -n "$max_samples" ]; then
+    [[ "$max_samples" =~ ^[0-9]+$ ]] && [ $((10#$max_samples)) -gt 0 ] ||
+        { echo "--max-samples must be a positive number" >&2; exit 2; }
+    max_samples=$((10#$max_samples))
+fi
 
 # Data operations (S3 refs and results) run as the runner role in CI; the deployer only manages
 # compute. Locally, the admin session does both.
@@ -54,7 +60,7 @@ input=$(cd "$(dirname "$input")" && pwd)/$(basename "$input")
 run_id=$(date -u +%Y%m%dT%H%M%SZ)
 local_dir="$root/runs/$study/$run_id"
 mkdir -p "$local_dir"
-if [ "$max_samples" -gt 0 ]; then
+if [ -n "$max_samples" ]; then
     head -n $((max_samples + 1)) "$input" > "$local_dir/samplesheet.csv" # header + first N rows
 else
     cp "$input" "$local_dir/samplesheet.csv"
@@ -135,6 +141,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 
+[ -n "${AMR_COMPUTE_MARKER:-}" ] && touch "$AMR_COMPUTE_MARKER"
 log "compute: apply"
 "$TF" -chdir="$infra/compute" apply -auto-approve -input=false
 compute_applied=1

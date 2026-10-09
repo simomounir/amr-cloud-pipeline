@@ -8,10 +8,11 @@ on:
     types: [published]
   workflow_dispatch:
 
+# Build runs npm ci (third-party code), so it gets no OIDC token: AWS trusts any token from
+# main of this repository. Only the deploy job, with its own environment, gets one.
 permissions:
   contents: read
-  pages: write
-  id-token: write
+  pages: read
 
 concurrency:
   group: pages
@@ -49,6 +50,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

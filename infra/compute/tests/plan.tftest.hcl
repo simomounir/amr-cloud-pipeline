@@ -56,24 +56,21 @@ run "network_has_no_inbound_access" {
   }
 }
 
-run "iam_is_scoped_to_project_resources" {
+run "uses_platform_roles" {
   command = plan
 
+  # The roles live in platform/; compute/ creates none, so its deployer needs no IAM writes.
   assert {
-    condition = alltrue([
-      for s in jsondecode(aws_iam_role_policy.job_s3.policy).Statement : alltrue([
-        for r in flatten([s.Resource]) : startswith(r, "arn:aws:s3:::amr-pipeline-123456789012")
-      ])
-    ])
-    error_message = "Job S3 access must be limited to the project bucket."
+    condition     = aws_batch_compute_environment.spot.compute_resources[0].instance_role == "arn:aws:iam::123456789012:instance-profile/amr-batch-instance"
+    error_message = "Hosts use the platform instance profile amr-batch-instance."
+  }
+  assert {
+    condition     = output.job_role_arn == "arn:aws:iam::123456789012:role/amr-batch-job"
+    error_message = "Jobs use the platform job role amr-batch-job."
   }
   assert {
     condition     = aws_launch_template.batch.metadata_options[0].http_put_response_hop_limit == 1
     error_message = "Containers must not reach instance metadata (hop limit 1)."
-  }
-  assert {
-    condition     = aws_iam_role_policy_attachment.instance_ecs.policy_arn == "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-    error_message = "The instance role only needs the ECS managed policy."
   }
 }
 
@@ -96,17 +93,5 @@ run "boot_script_fails_closed" {
   assert {
     condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "/opt/aws-cli/bin/aws --version")
     error_message = "The boot script must verify the AWS CLI it installed."
-  }
-}
-
-run "batch_roles_carry_the_boundary" {
-  command = plan
-
-  assert {
-    condition = alltrue([
-      for b in [aws_iam_role.instance.permissions_boundary, aws_iam_role.job.permissions_boundary] :
-      b == "arn:aws:iam::123456789012:policy/amr-batch-boundary"
-    ])
-    error_message = "amr-batch-* roles must carry the amr-batch-boundary permissions boundary."
   }
 }

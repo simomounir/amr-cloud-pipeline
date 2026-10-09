@@ -99,31 +99,46 @@ run "deployer_is_fenced_in" {
     ])
     error_message = "Deployer must not have wildcard actions."
   }
+  # No IAM writes at all: a role it could create would outlive compute/ and could trust anyone.
   assert {
-    condition = alltrue([
-      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement : alltrue([
-        for r in flatten([s.Resource]) : startswith(r, "arn:aws:iam::123456789012:role/amr-batch-") || startswith(r, "arn:aws:iam::123456789012:instance-profile/amr-batch-") || startswith(r, "arn:aws:iam::123456789012:policy/amr-batch-boundary")
-      ]) if anytrue([for a in flatten([s.Action]) : startswith(a, "iam:")])
-    ])
-    error_message = "Deployer IAM actions may only touch amr-batch-* roles, instance profiles and the boundary."
+    condition = toset(flatten([
+      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement : [
+        for a in flatten([s.Action]) : a if startswith(a, "iam:")
+      ]
+    ])) == toset(["iam:PassRole"])
+    error_message = "The deployer's only IAM action is iam:PassRole."
+  }
+  assert {
+    condition = toset(flatten([
+      for s in jsondecode(aws_iam_role_policy.deployer.policy).Statement : flatten([s.Resource])
+      if contains(flatten([s.Action]), "iam:PassRole")
+    ])) == toset(["arn:aws:iam::123456789012:role/amr-batch-instance", "arn:aws:iam::123456789012:role/amr-batch-job"])
+    error_message = "The deployer may pass only the two Batch roles."
+  }
+}
+
+run "batch_roles_are_minimal" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_role.batch_instance.name == "amr-batch-instance" && aws_iam_instance_profile.batch_instance.name == "amr-batch-instance"
+    error_message = "Instance role and profile are named amr-batch-instance (compute/ refers to them by name)."
+  }
+  assert {
+    condition     = aws_iam_role_policy_attachment.batch_instance_ecs.policy_arn == "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+    error_message = "The instance role only needs the ECS managed policy."
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role.batch_job.assume_role_policy).Statement[0].Principal.Service == "ecs-tasks.amazonaws.com" && aws_iam_role.batch_job.name == "amr-batch-job"
+    error_message = "The job role amr-batch-job is assumable only by ECS tasks."
   }
   assert {
     condition = alltrue([
-      for sid in ["CreateBatchRolesWithBoundary", "WriteBatchRolePoliciesWithBoundary"] :
-      jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, sid)].Condition.StringEquals["iam:PermissionsBoundary"] == "arn:aws:iam::123456789012:policy/amr-batch-boundary"
+      for s in jsondecode(aws_iam_role_policy.batch_job_s3.policy).Statement : alltrue([
+        for r in flatten([s.Resource]) : startswith(r, "arn:aws:s3:::amr-pipeline-123456789012")
+      ])
     ])
-    error_message = "Role creation and policy writes require the amr-batch-boundary permissions boundary."
-  }
-  assert {
-    condition     = jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "AttachOnlyEcsPolicy")].Condition.ArnEquals["iam:PolicyARN"] == "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-    error_message = "Only the ECS managed policy may be attached to Batch roles."
-  }
-  assert {
-    condition = contains(
-      flatten([jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "NeverRemoveBoundary")].Action]),
-      "iam:DeleteRolePermissionsBoundary"
-    ) && jsondecode(aws_iam_role_policy.deployer.policy).Statement[index(jsondecode(aws_iam_role_policy.deployer.policy).Statement[*].Sid, "NeverRemoveBoundary")].Effect == "Deny"
-    error_message = "Deployer must be explicitly denied removing or changing boundaries."
+    error_message = "Job S3 access must be limited to the project bucket."
   }
 }
 
