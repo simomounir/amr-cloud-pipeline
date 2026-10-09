@@ -19,5 +19,7 @@ export function Timeline({ rows, theme }: { rows: TimelineRow[]; theme: Theme })
   );
   const detections = rows.filter((r) => r.family !== "none").reduce((n, r) => n + r.isolates, 0);
   const groups = new Set(rows.map((r) => r.year)).size;
-  return <PlotFigure options={options} summary={`${detections} carbapenemase detections across ${groups} year groups`} />;
+  return (
+    <PlotFigure options={options} summary={`${detections} carbapenemase detections across ${groups} year groups`} />
+  );
 }

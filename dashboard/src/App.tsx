@@ -34,7 +34,8 @@ export function App() {
       ) : (
         <>
           {route.page === "home" && <Home studies={db.studies} infos={db.infos} failed={db.failed} />}
-          {route.page === "study" && <StudyPage
+          {route.page === "study" && (
+            <StudyPage
               conn={db.conn}
               study={route.study}
               studies={db.studies}
@@ -44,8 +45,11 @@ export function App() {
               filters={filters}
               setFilters={setFilters}
               theme={theme}
-            />}
-          {route.page === "explore" && <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />}
+            />
+          )}
+          {route.page === "explore" && (
+            <Explore conn={db.conn} filters={filters} setFilters={setFilters} theme={theme} />
+          )}
           {route.page === "method" && <Method studies={db.studies} infos={db.infos} />}
         </>
       )}

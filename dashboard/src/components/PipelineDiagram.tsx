@@ -51,7 +51,9 @@ export function PipelineDiagram() {
         {STEPS.map((s, i) => (
           <g key={s.title}>
             <Box x={i * (W + GAP)} y={0} step={s} />
-            {i > 0 && <Arrow x1={i * (W + GAP) - GAP + 4} y1={H / 2} x2={i * (W + GAP) - 3} y2={H / 2} m="pipe-arrow-h" />}
+            {i > 0 && (
+              <Arrow x1={i * (W + GAP) - GAP + 4} y1={H / 2} x2={i * (W + GAP) - 3} y2={H / 2} m="pipe-arrow-h" />
+            )}
           </g>
         ))}
       </svg>
@@ -60,7 +62,9 @@ export function PipelineDiagram() {
         {STEPS.map((s, i) => (
           <g key={s.title}>
             <Box x={0} y={i * (H + GAP)} step={s} />
-            {i > 0 && <Arrow x1={W / 2} y1={i * (H + GAP) - GAP + 4} x2={W / 2} y2={i * (H + GAP) - 3} m="pipe-arrow-v" />}
+            {i > 0 && (
+              <Arrow x1={W / 2} y1={i * (H + GAP) - GAP + 4} x2={W / 2} y2={i * (H + GAP) - 3} m="pipe-arrow-v" />
+            )}
           </g>
         ))}
       </svg>

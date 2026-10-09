@@ -8,12 +8,22 @@ export function PlotFigure({
 }: {
   options: Plot.PlotOptions;
   summary: string;
-  /** Called with the datum under the pointer on click (Plot sets `figure.value` for marks with `tip`). Memoise it. */
+  /**
+   * Called with the datum under the pointer on click (Plot sets `figure.value` for marks with `tip`).
+   * Memoise it.
+   */
   onPick?: (datum: unknown) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const figure = Plot.plot({ ...options, style: { background: "transparent", color: "var(--ink)", ...(typeof options.style === "object" ? options.style : {}) } });
+    const figure = Plot.plot({
+      ...options,
+      style: {
+        background: "transparent",
+        color: "var(--ink)",
+        ...(typeof options.style === "object" ? options.style : {}),
+      },
+    });
     // Plot's own `:where(.plot)` rule sets --plot-background: white on each svg and its style option
     // ignores custom properties, so tooltips and markers only follow the theme if it is set here.
     for (const svg of figure.tagName === "svg" ? [figure] : figure.querySelectorAll("svg")) {
