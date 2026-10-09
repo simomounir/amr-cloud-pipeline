@@ -4,12 +4,13 @@
 import csv
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from amrtools.errors import InputFormatError
 from amrtools.validate import validate_dir
 
 FIGURES = ("heatmap", "periods", "map", "agreement")
@@ -51,11 +52,13 @@ def parse_story(text: str) -> dict:
     findings = []
     for block in re.split(r"^### +", named.get("Findings", ""), flags=re.M)[1:]:
         heading, _, text_ = block.partition("\n")
-        match = re.search(r"\s*\{#([a-z]+)\}\s*$", heading)
+        match = re.search(r"\s*\{#([^}\s]+)\}\s*$", heading)
         figure = match[1] if match else None
         if figure is not None and figure not in FIGURES:
             raise ValueError(f"unknown figure {{#{figure}}}; use one of {', '.join(FIGURES)}")
         title = heading[: match.start()].strip() if match else heading.strip()
+        if any(f["id"] == _slug(title) for f in findings):
+            raise ValueError(f"duplicate finding {title!r} (same id as an earlier finding)")
         findings.append({"id": _slug(title), "figure": figure, "title": title,
                          "text": " ".join(text_.split())})  # fmt: skip
     return {"title": meta.get("title", ""), "question": meta.get("question", ""),
@@ -73,8 +76,20 @@ def _cohort(study_dir: Path, samples: list[str], settings: dict[str, str]) -> pa
                    settings.get("reference_carbapenemases_column", ""):
                    "ref_carbapenemases"}  # fmt: skip
         with open(path, newline="") as handle:
-            rows = [{renames.get(k, k): (v or None) for k, v in row.items()}
-                    for row in csv.DictReader(handle)]  # fmt: skip
+            reader = csv.DictReader(handle)
+            if "run_accession" not in (reader.fieldnames or []):
+                raise InputFormatError(f"{path}: no run_accession column")
+            rows = [{renames.get(k, k): (v or None) for k, v in row.items()} for row in reader]
+        seen = set()
+        for row in rows:
+            if row["sample"] in seen:
+                raise InputFormatError(f"{path}: duplicate run_accession {row['sample']}")
+            seen.add(row["sample"])
+        for row in rows:
+            if row.get("year") is not None and not re.fullmatch(r"\d+", row["year"]):
+                raise InputFormatError(
+                    f"{path}: year {row['year']!r} for {row['sample']} is not an integer"
+                )
     extra = sorted({k for r in rows for k in r} - {"sample", *STANDARD})
     columns = {"sample": [r["sample"] for r in rows]}
     for name in (*STANDARD, *extra):
@@ -108,10 +123,12 @@ def _agreement(cohort: pa.Table, summary: list[dict], genes: list[dict]) -> dict
         return None
     ours_fam = _families(genes)
     st = fam = 0
+    not_in_reference = [r["sample"] for r in summary if r["sample"] not in ref]
+    summary = [r for r in summary if r["sample"] in ref]
     matrix: dict[tuple[str, str], int] = {}
     disagreements = []
     for row in summary:
-        sample, theirs = row["sample"], ref.get(row["sample"], {})
+        sample, theirs = row["sample"], ref[row["sample"]]
         if row["st"] == theirs.get("ref_st"):
             st += 1
         else:
@@ -131,7 +148,7 @@ def _agreement(cohort: pa.Table, summary: list[dict], genes: list[dict]) -> dict
             "carbapenemase_family": {"agree": fam, "total": len(summary)},
             "family_matrix": [{"ours": o, "reference": r, "genomes": n}
                               for (o, r), n in sorted(matrix.items())],
-            "disagreements": disagreements}  # fmt: skip
+            "disagreements": disagreements, "not_in_reference": not_in_reference}  # fmt: skip
 
 
 def _duration_minutes(text: str) -> float:
@@ -148,13 +165,15 @@ def _run_facts(run_dir: Path | None) -> dict:
     facts |= {"cost_usd": round(cost["total_usd"], 2),
               "cost_per_genome_usd": round(cost["per_sample_usd"], 4),
               "instance_hours": round(cost["instance_hours"], 1)}  # fmt: skip
-    trace = list(csv.DictReader(open(run_dir / "trace.tsv"), delimiter="\t"))
-    starts = [datetime.strptime(t["submit"], "%Y-%m-%d %H:%M:%S.%f") for t in trace]
-    ends = [
-        s.timestamp() / 60 + _duration_minutes(t["duration"])
-        for s, t in zip(starts, trace, strict=True)
-    ]
-    facts["wall_time_minutes"] = round(max(ends) - min(s.timestamp() / 60 for s in starts))
+    with open(run_dir / "trace.tsv", newline="") as handle:
+        trace = list(csv.DictReader(handle, delimiter="\t"))
+    if trace:
+        starts = [datetime.strptime(t["submit"], "%Y-%m-%d %H:%M:%S.%f") for t in trace]
+        ends = [
+            s + timedelta(minutes=_duration_minutes(t["duration"]))
+            for s, t in zip(starts, trace, strict=True)
+        ]
+        facts["wall_time_minutes"] = round((max(ends) - min(starts)).total_seconds() / 60)
     return facts
 
 
