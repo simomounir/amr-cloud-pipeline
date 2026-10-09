@@ -44,7 +44,9 @@ export interface OptionRow {
 }
 
 // Option queries interpolate one of these fixed column names, never user input.
-const OPTION_COLUMNS: Record<ListFilter, string> = {
+export type OptionKey = "studies" | "countries" | "sources" | "sts";
+const OPTION_COLUMNS: Record<OptionKey, string> = {
+  studies: "study",
   countries: "country",
   sources: "source_category",
   sts: "st",
@@ -73,7 +75,7 @@ export function isolateRows(conn: Connection, filters: Filters): Promise<Isolate
   return run<IsolateRow>(conn, isolatesSql, filters);
 }
 
-export function options(conn: Connection, filters: Filters, key: ListFilter): Promise<OptionRow[]> {
+export function options(conn: Connection, filters: Filters, key: OptionKey): Promise<OptionRow[]> {
   return run<OptionRow>(conn, optionsSql.replace("{{column}}", OPTION_COLUMNS[key]), filters, key);
 }
 
@@ -84,10 +86,12 @@ export interface AnalysisCounts {
 
 // A sample whose analysis failed has metadata but no run_summary row (schema 1.2.0 also marks it
 // in samples.analysis_status; counting this way works for older datasets too).
-export async function analysisCounts(conn: Connection): Promise<AnalysisCounts> {
+export async function analysisCounts(conn: Connection, study?: string): Promise<AnalysisCounts> {
+  const where = study === undefined ? "" : "WHERE study = ?";
   const [row] = await conn.query<{ analysed: number; failed: number }>(
-    `SELECT (SELECT count(*) FROM run_summary)::INTEGER AS analysed,
-            ((SELECT count(*) FROM samples) - (SELECT count(*) FROM run_summary))::INTEGER AS failed`,
+    `SELECT (SELECT count(*) FROM run_summary ${where})::INTEGER AS analysed,
+            ((SELECT count(*) FROM samples ${where}) - (SELECT count(*) FROM run_summary ${where}))::INTEGER AS failed`,
+    study === undefined ? [] : [study, study, study],
   );
   return { analysed: row.analysed, failed: row.failed };
 }

@@ -1,6 +1,8 @@
-import type { Filters, ListFilter } from "../data/filters";
+import type { Filters } from "../data/filters";
 import { EMPTY_FILTERS } from "../data/filters";
-import type { OptionRow } from "../data/queries";
+import type { OptionKey, OptionRow } from "../data/queries";
+
+type ListFilter = Exclude<OptionKey, "studies">; // the study filter arrives with the new shell
 
 const LABELS: Record<ListFilter, string> = { countries: "Country", sources: "Isolation source", sts: "Sequence type" };
 

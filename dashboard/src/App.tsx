@@ -19,7 +19,13 @@ export function App() {
   const [db, setDb] = useState<{ conn: Connection; manifest: Manifest; tag: string; counts: AnalysisCounts }>();
   const [fatal, setFatal] = useState<string>();
   useEffect(() => {
-    openDashboardDb(DATA_URL).then(setDb, (e: Error) => setFatal(e.message));
+    openDashboardDb(DATA_URL)
+      .then((d) => {
+        // Task 6 rebuilds the shell around every study; until then the footer shows the first one.
+        const first = d.studies[0];
+        setDb({ conn: d.conn, manifest: d.manifests[first.study], tag: first.release, counts: d.counts[first.study] });
+      })
+      .then(undefined, (e: Error) => setFatal(e.message));
   }, []);
   const { filters, setFilters, includeIntrinsic, setIncludeIntrinsic, data, years } = useDashboard(db?.conn);
   const clear = () => setFilters(EMPTY_FILTERS);

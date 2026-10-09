@@ -1,0 +1,109 @@
+{
+  "study": "study-a",
+  "title": "Fixture study A",
+  "question": "Which carbapenemases does each clone carry?",
+  "focus": "carbapenemases",
+  "background": [
+    "Fixture background paragraph."
+  ],
+  "findings": [
+    {
+      "id": "heatmap-finding",
+      "figure": "heatmap",
+      "title": "Heatmap finding",
+      "text": "Text one."
+    },
+    {
+      "id": "periods-finding",
+      "figure": "periods",
+      "title": "Periods finding",
+      "text": "Text two."
+    },
+    {
+      "id": "map-finding",
+      "figure": "map",
+      "title": "Map finding",
+      "text": "Text three."
+    },
+    {
+      "id": "agreement-finding",
+      "figure": "agreement",
+      "title": "Agreement finding",
+      "text": "Text four."
+    }
+  ],
+  "reference": {
+    "name": "Fixture reference"
+  },
+  "run": {
+    "run_id": "fx",
+    "selected": 7,
+    "analysed": 6,
+    "failed": [
+      "F7"
+    ],
+    "cost_usd": null,
+    "cost_per_genome_usd": null,
+    "instance_hours": null,
+    "wall_time_minutes": null
+  },
+  "agreement": {
+    "st": {
+      "agree": 5,
+      "total": 6
+    },
+    "carbapenemase_family": {
+      "agree": 5,
+      "total": 6
+    },
+    "family_matrix": [
+      {
+        "ours": "KPC",
+        "reference": "KPC",
+        "genomes": 2
+      },
+      {
+        "ours": "NDM",
+        "reference": "NDM",
+        "genomes": 1
+      },
+      {
+        "ours": "NDM+OXA-48-like",
+        "reference": "NDM+OXA-48-like",
+        "genomes": 1
+      },
+      {
+        "ours": "none",
+        "reference": "KPC",
+        "genomes": 1
+      },
+      {
+        "ours": "none",
+        "reference": "none",
+        "genomes": 1
+      }
+    ],
+    "disagreements": [
+      {
+        "sample": "F5",
+        "field": "st",
+        "ours": "ST11",
+        "reference": "ST15"
+      },
+      {
+        "sample": "F6",
+        "field": "carbapenemase_family",
+        "ours": "none",
+        "reference": "KPC"
+      }
+    ]
+  },
+  "versions": {
+    "amrfinder": [
+      "4.2.7"
+    ],
+    "amrfinder_db": [
+      "2026-09-30.1"
+    ]
+  }
+}

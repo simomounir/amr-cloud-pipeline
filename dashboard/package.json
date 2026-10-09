@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "fixture-data": "rm -rf public/data && mkdir -p public/data && cp tests/fixtures/data/* public/data/ && echo dataset-fixture > public/data/TAG",
+    "fixture-data": "rm -rf public/data && mkdir -p public/data && cp -R tests/fixtures/data/. public/data/",
     "preview:fixture": "npm run fixture-data && vite build && vite preview --port 4173 --strictPort",
     "e2e": "playwright test"
   },
