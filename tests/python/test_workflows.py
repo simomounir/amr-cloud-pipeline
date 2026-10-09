@@ -1,5 +1,6 @@
 """Guards on the GitHub workflows that can reach AWS."""
 
+import json
 import os
 import re
 import subprocess
@@ -144,17 +145,20 @@ def test_malformed_resume_id_is_refused(tmp_path):
     assert proc.returncode != 0 and "ARGS" not in proc.stdout
 
 
-def test_site_dataset_is_pinned_in_git():
-    """The deployed dataset comes from dashboard/dataset.txt, so every publish is a commit.
+def test_site_studies_are_pinned_in_git():
+    """The site shows the releases listed in dashboard/studies.json; publishing is a commit.
 
     Pages deployments are identified by commit: a release alone (same commit) redeployed the
     old site on 2026-10-09.
     """
-    pinned = (ROOT / "dashboard" / "dataset.txt").read_text().strip()
-    assert re.fullmatch(r"dataset-\d{4}-\d{2}-\d{2}", pinned)
+    entries = json.loads((ROOT / "dashboard" / "studies.json").read_text())
+    assert entries and all(re.fullmatch(r"[a-z0-9][a-z0-9-]*", e["study"]) for e in entries)
+    assert all(
+        re.fullmatch(r"dataset-([a-z0-9-]+-)?\d{4}-\d{2}-\d{2}", e["release"]) for e in entries
+    )
+    assert not (ROOT / "dashboard" / "dataset.txt").exists()
     pages = _load("pages.yml")
     assert "release" not in pages[True]  # yaml reads the `on:` key as True
-    assert "dashboard/**" in pages[True]["push"]["paths"]
     steps = pages["jobs"]["build"]["steps"]
-    script = next(s for s in steps if s.get("name", "").startswith("Download"))
-    assert "dashboard/dataset.txt" in script["run"]
+    script = next(s for s in steps if s.get("name", "").startswith("Download"))["run"]
+    assert "dashboard/studies.json" in script and "public/data/$study" in script
