@@ -1,3 +1,4 @@
+include { FETCH_READS          } from '../modules/local/fetch_reads/main'
 include { FASTP                } from '../modules/nf-core/fastp/main'
 include { SHOVILL              } from '../modules/nf-core/shovill/main'
 include { AMRFINDERPLUS_UPDATE } from '../modules/nf-core/amrfinderplus/update/main'
@@ -9,11 +10,20 @@ include { AMRTOOLS_EXPORT      } from '../modules/local/amrtools/export/main'
 
 workflow ISOLATE {
     take:
-    ch_samples     // [meta, [fastq_1, fastq_2]]
+    ch_samples     // [meta, [fastq_1, fastq_2]]: local paths or remote URL strings
     ch_samplesheet // value channel: the samplesheet file
 
     main:
-    FASTP(ch_samples.map { meta, reads -> [meta, reads, []] }, false, false, false)
+    // Remote reads (URL strings) are downloaded by each sample's own task; local paths go
+    // straight to FASTP.
+    def ch_input = ch_samples.branch { meta, reads ->
+        remote: reads[0] instanceof String
+        local: true
+    }
+    FETCH_READS(ch_input.remote.map { meta, urls -> [meta, urls[0], urls[1]] })
+    def ch_reads = ch_input.local.mix(FETCH_READS.out.reads)
+
+    FASTP(ch_reads.map { meta, reads -> [meta, reads, []] }, false, false, false)
     SHOVILL(FASTP.out.reads)
 
     def ch_db = channel.empty()

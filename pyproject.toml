@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "amrtools"
-version = "0.4.0"
+version = "0.5.0"
 description = "Parsers and summary tables for the AMR cloud pipeline"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -18,10 +18,12 @@ and GitHub can always assume the runner role to start the next run.
 - **Region** `eu-west-1`; every resource tagged `Project=amr-cloud-pipeline`, `ManagedBy=terraform`.
 - **No NAT gateway** (it costs ~$30/month even idle). Instances get public IPs to reach ENA
   and container registries; the security group allows no inbound traffic.
-- **Batch** is spot only (`SPOT_PRICE_CAPACITY_OPTIMIZED`), x86 families c6i/c6a/c7i/m6i/m6a,
+- **Batch** is spot only (`SPOT_PRICE_CAPACITY_OPTIMIZED`), x86 families c6i/c6a/c7i/m6i/m6a in
+  sizes xlarge to 4xlarge (at most 4 four-CPU assemblies share a host's 100 GB disk),
   min 0 vCPU (nothing runs at idle), max `var.max_vcpus` (default 96, the spot quota) as a burn-rate cap.
   Hosts use the ECS Amazon Linux 2023 image with a 100 GB disk and a self-contained AWS CLI
-  (Miniforge + conda `awscli`) installed at boot in `/opt/aws-cli`. Nextflow mounts it into every
+  (Miniforge + conda `awscli`, both pinned; the installer is checked against its SHA-256)
+  installed at boot in `/opt/aws-cli`. Nextflow mounts it into every
   task container to stage files; the official AWS CLI build fails in minimal images (no `libz`). Instance metadata is limited to
   the host (hop limit 1), so containers only see their own job role.
 - **S3** (platform): `work/<study>/<run>/` expires after 7 days; `results/<study>/<run>/` is
@@ -91,7 +93,13 @@ uploaded once), runs Nextflow on this machine with every task on Batch spot, cop
 to `runs/<study>/<run>/` and validates them, destroys `compute`, then prices the run's instances
 (`cost.json`). Results stay in `s3://<bucket>/results/<study>/<run>/`.
 
-**Failed samples.** A per-sample step that fails is retried once (out-of-memory: twice, with
+**Reads.** Each sample's first task (`FETCH_READS`) downloads its own reads from ENA on the
+worker, with retries, checking the size (when the server reports it) and ENA's MD5 (from the
+samplesheet, when present), at most 16 at a time (`amrtools fetch-reads`). Nextflow no longer stages every remote file through the
+machine running it, where one dropped connection stopped a whole run.
+
+**Failed samples.** A per-sample step that fails (or exceeds its time limit: Shovill 3 h,
+others 1 h) is retried once (out-of-memory: twice, with
 more memory), then that sample is skipped and recorded as `failed` in `samples.analysis_status`.
 The run lists them (`amrtools run-status`); if more than 25% failed, the problem is the run, not
 the samples, so the script exits non-zero and writes no `_SUCCESS`.

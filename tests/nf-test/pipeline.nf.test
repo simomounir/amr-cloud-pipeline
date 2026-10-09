@@ -55,6 +55,36 @@ nextflow_pipeline {
         }
     }
 
+    test("remote reads are downloaded per sample on the workers; a failed download skips only that sample") {
+        tag "stub"
+        options "-stub"
+        config "./fail_one_download.config"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub_remote.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            // No head-node staging of the URLs: the hosts in them do not even exist.
+            assert workflow.success
+            assert workflow.trace.succeeded().findAll { it.name.startsWith('ISOLATE:FETCH_READS') }*.name.sort() ==
+                ['ISOLATE:FETCH_READS (stub_a)', 'ISOLATE:FETCH_READS (stub_c)']
+            assert workflow.trace.failed().count { it.name == 'ISOLATE:FETCH_READS (stub_b)' } == 2
+            def summary = path("$outputDir/summary/run_summary.tsv").readLines()
+            assert summary.drop(1).collect { it.split('\t')[0] } == ['stub_a', 'stub_c']
+            def lines = path("$outputDir/summary/samples.tsv").readLines()
+            def header = lines[0].split('\t', -1) as List
+            def status = lines.drop(1).collectEntries { line ->
+                def row = [header, line.split('\t', -1) as List].transpose().collectEntries()
+                [row.sample, row.analysis_status]
+            }
+            assert status == [stub_a: 'complete', stub_b: 'failed', stub_c: 'complete']
+        }
+    }
+
     test("ENA metadata with year-only dates and quoted commas runs through") {
         tag "stub"
         options "-stub"
@@ -113,6 +143,24 @@ nextflow_pipeline {
         then {
             assert workflow.failed
             assert (workflow.stdout + workflow.stderr).join('\n').contains('missing_R1.fastq.gz')
+            assert workflow.trace.tasks().size() == 0
+        }
+    }
+
+    test("a row mixing a local file and a URL is rejected") {
+        tag "validation"
+        options "-stub"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_mixed.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join('\n').contains('both local files or both URLs')
             assert workflow.trace.tasks().size() == 0
         }
     }

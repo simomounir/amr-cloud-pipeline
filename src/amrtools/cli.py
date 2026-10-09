@@ -12,6 +12,7 @@ from amrtools.dataset import build_dataset
 from amrtools.ena import SAMPLESHEET_COLUMNS, fetch_samples, http_get, write_csv
 from amrtools.errors import InputFormatError
 from amrtools.export import export_run
+from amrtools.fetch import fetch
 from amrtools.merge import merge_tables
 from amrtools.qc import QcThresholds
 from amrtools.sample import build_sample_tables, write_tsv
@@ -71,6 +72,11 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--run-started-at", required=True)
     export.add_argument("--outdir", type=Path, required=True)
     export.add_argument("--samples-tsv", type=Path)
+
+    reads = commands.add_parser("fetch-reads", help="download one read file, checked")
+    reads.add_argument("url")
+    reads.add_argument("--out", type=Path, required=True, dest="reads_out")
+    reads.add_argument("--md5", help="expected MD5 (from ENA); size is always checked")
 
     status = commands.add_parser("run-status", help="report failed samples of a run")
     status.add_argument("directory", type=Path)
@@ -166,6 +172,10 @@ def _run_export(args: argparse.Namespace) -> None:
     )
 
 
+def _run_fetch_reads(args: argparse.Namespace) -> None:
+    fetch(args.url, args.reads_out, md5=args.md5 or None)
+
+
 def _run_status(args: argparse.Namespace) -> None:
     samples = validate_dir(args.directory)["samples"].select(["sample", "analysis_status"])
     failed = [r["sample"] for r in samples.to_pylist() if r["analysis_status"] == "failed"]
@@ -198,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         "export": _run_export,
         "build-dataset": _run_build_dataset,
         "run-status": _run_status,
+        "fetch-reads": _run_fetch_reads,
     }
     try:
         commands[args.command](args)
