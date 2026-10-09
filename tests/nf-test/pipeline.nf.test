@@ -27,6 +27,34 @@ nextflow_pipeline {
         }
     }
 
+    test("a sample that keeps failing is retried once, then skipped and marked failed") {
+        tag "stub"
+        options "-stub"
+        config "./fail_one_sample.config"
+
+        when {
+            params {
+                input  = "${baseDir}/tests/data/samplesheet_stub.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def summary = path("$outputDir/summary/run_summary.tsv").readLines()
+            assert summary.drop(1).collect { it.split('\t')[0] } == ['stub_a', 'stub_c']
+            def lines = path("$outputDir/summary/samples.tsv").readLines()
+            def header = lines[0].split('\t', -1) as List
+            def status = lines.drop(1).collectEntries { line ->
+                def row = [header, line.split('\t', -1) as List].transpose().collectEntries()
+                [row.sample, row.analysis_status]
+            }
+            assert status == [stub_a: 'complete', stub_b: 'failed', stub_c: 'complete']
+            def shovillB = workflow.trace.failed().findAll { it.name == 'ISOLATE:SHOVILL (stub_b)' }
+            assert shovillB.size() == 2
+        }
+    }
+
     test("ENA metadata with year-only dates and quoted commas runs through") {
         tag "stub"
         options "-stub"
