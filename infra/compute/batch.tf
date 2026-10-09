@@ -30,7 +30,8 @@ resource "aws_launch_template" "batch" {
   }
 
   # Batch requires MIME multipart user data. Installs a self-contained AWS CLI (Miniforge + conda
-  # awscli, as Nextflow's docs recommend) into /opt/aws-cli. Nextflow mounts it into every task
+  # awscli, as Nextflow's docs recommend, both pinned; the installer is checked against its
+  # published SHA-256) into /opt/aws-cli. Nextflow mounts it into every task
   # container; being self-contained (own Python and libz) it runs even in minimal images such as
   # Shovill's, where AWS's official CLI build fails for lack of libz. If the install fails, the
   # instance shuts down so Batch replaces it instead of running every job on a broken host.
@@ -46,9 +47,10 @@ resource "aws_launch_template" "batch" {
     trap 'echo "AWS CLI install failed; shutting down so Batch replaces this host"; shutdown -h now' ERR
     cd /tmp
     curl -sSfL --retry 5 --retry-all-errors --connect-timeout 10 \
-      "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" -o miniforge.sh
+      "https://github.com/conda-forge/miniforge/releases/download/${local.miniforge_version}/Miniforge3-${local.miniforge_version}-Linux-x86_64.sh" -o miniforge.sh
+    echo "${local.miniforge_sha256}  miniforge.sh" | sha256sum -c -
     bash miniforge.sh -b -p ${local.aws_cli_dir}
-    ${local.aws_cli_dir}/bin/conda install -y -q -c conda-forge awscli
+    ${local.aws_cli_dir}/bin/conda install -y -q -c conda-forge awscli=${local.awscli_version}
     ${local.aws_cli_dir}/bin/conda clean -y -a
     ${local.aws_cli_dir}/bin/aws --version
     rm -f miniforge.sh

@@ -94,4 +94,17 @@ run "boot_script_fails_closed" {
     condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "/opt/aws-cli/bin/aws --version")
     error_message = "The boot script must verify the AWS CLI it installed."
   }
+  # A new Miniforge or awscli release must not change (or break) the hosts unannounced.
+  assert {
+    condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "Miniforge3-26.7.2-0-Linux-x86_64.sh")
+    error_message = "Miniforge is pinned to a release, not 'latest'."
+  }
+  assert {
+    condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "281b0ac7d550802efc81af633225a5e6116d29ae72f3ab4eae7168c3931a4c05  miniforge.sh\" | sha256sum -c")
+    error_message = "The Miniforge installer is checked against its published SHA-256 before it runs."
+  }
+  assert {
+    condition     = strcontains(base64decode(aws_launch_template.batch.user_data), "awscli=2.37.10")
+    error_message = "awscli is pinned to a version."
+  }
 }

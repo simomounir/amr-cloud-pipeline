@@ -29,6 +29,12 @@ locals {
   queue_name  = "amr-queue"
   log_group   = "/amr/batch"
   aws_cli_dir = "/opt/aws-cli"
+  # Pinned to what the 2026-10-09 cloud runs used. To update: take a release from
+  # github.com/conda-forge/miniforge/releases with its .sha256 file, and an awscli version from
+  # conda-forge, then run the smoke test.
+  miniforge_version = "26.7.2-0"
+  miniforge_sha256  = "281b0ac7d550802efc81af633225a5e6116d29ae72f3ab4eae7168c3931a4c05"
+  awscli_version    = "2.37.10"
   # Created by infra/platform (batch_roles.tf); compute/ creates no IAM, so its deployer needs
   # only iam:PassRole on these.
   instance_profile_arn = "arn:aws:iam::${local.account_id}:instance-profile/amr-batch-instance"
