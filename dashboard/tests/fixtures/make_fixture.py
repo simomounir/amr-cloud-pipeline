@@ -91,6 +91,9 @@ Text three.
 
 ### Agreement finding {#agreement}
 Text four.
+
+## Caveats
+Fixture caveat paragraph.
 """
 
 STORY_B = """---

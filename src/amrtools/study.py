@@ -47,6 +47,7 @@ def parse_story(text: str) -> dict:
     sections = re.split(r"^## +(.+)$", body, flags=re.M)
     named = {sections[i].strip(): sections[i + 1] for i in range(1, len(sections) - 1, 2)}
     background = [p.strip() for p in named.get("Background", "").split("\n\n") if p.strip()]
+    caveats = [p.strip() for p in named.get("Caveats", "").split("\n\n") if p.strip()]
     findings = []
     for block in re.split(r"^### +", named.get("Findings", ""), flags=re.M)[1:]:
         heading, _, text_ = block.partition("\n")
@@ -59,7 +60,7 @@ def parse_story(text: str) -> dict:
                          "text": " ".join(text_.split())})  # fmt: skip
     return {"title": meta.get("title", ""), "question": meta.get("question", ""),
             "focus": meta.get("focus", ""), "background": background,
-            "findings": findings}  # fmt: skip
+            "findings": findings, "caveats": caveats}  # fmt: skip
 
 
 def _cohort(study_dir: Path, samples: list[str], settings: dict[str, str]) -> pa.Table:

@@ -271,12 +271,16 @@ function HowWeKnow({ info }: { info: StudyInfo }) {
           </div>
         ))}
       </dl>
-      <h3>Caveats</h3>
-      <p>
-        These are public genomes that people chose to sequence and share, so resistant and outbreak-associated isolates
-        are over-represented. The figures describe this cohort, not prevalence, and a genome without a carbapenemase
-        call is not proof that none is present.
-      </p>
+      {info.caveats && info.caveats.length > 0 && (
+        <>
+          <h3>Caveats</h3>
+          {info.caveats.map((p, i) => (
+            <p key={i}>
+              <RichText text={p} />
+            </p>
+          ))}
+        </>
+      )}
     </section>
   );
 }

@@ -26,6 +26,11 @@ ST258 carries KPC.
 
 ### A finding without a figure
 Text.
+
+## Caveats
+Public genomes are biased.
+
+Small groups.
 """
 
 YAML = """title: t
@@ -89,6 +94,11 @@ def test_parse_story():
         {"id": "a-finding-without-a-figure", "figure": None,
          "title": "A finding without a figure", "text": "Text."},
     ]  # fmt: skip
+    assert story["caveats"] == ["Public genomes are biased.", "Small groups."]
+
+
+def test_story_without_caveats_has_an_empty_list():
+    assert parse_story(STORY.split("## Caveats")[0])["caveats"] == []
 
 
 def test_story_with_unknown_figure_is_refused():

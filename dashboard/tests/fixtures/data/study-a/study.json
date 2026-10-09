@@ -32,6 +32,9 @@
       "text": "Text four."
     }
   ],
+  "caveats": [
+    "Fixture caveat paragraph."
+  ],
   "reference": {
     "name": "Fixture reference"
   },

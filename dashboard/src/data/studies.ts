@@ -38,6 +38,7 @@ export interface StudyInfo {
   focus: string;
   background: string[];
   findings: Finding[];
+  caveats?: string[];
   reference: { name: string } | null;
   run: RunFacts;
   agreement: Agreement | null;

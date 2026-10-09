@@ -35,3 +35,10 @@ genomes were sequenced and shared, not where resistance is most common.
 Our sequence types agree with Pathogenwatch for 151 of 152 genomes and our carbapenemase families
 for 150 of 152. One difference is a genome where we find blaGES-5, a carbapenemase the reference
 table does not list.
+
+## Caveats
+Public genomes over-represent resistant and outbreak-associated isolates: these shares describe this cohort, not how common each enzyme is.
+
+Each clone and period holds about 13 genomes, so one genome moves a share by roughly 8 percentage points; small differences are not meaningful.
+
+Clone labels and collection years come from the source collection (Pathogenwatch via AMRnet); sequence types and carbapenemases are re-called by this pipeline.
