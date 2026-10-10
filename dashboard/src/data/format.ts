@@ -17,7 +17,7 @@ export function mapCaption(mapped: number, noCountry: number): string {
     noCountry === 1
       ? "1 genome has no country in its ENA record and is not mapped"
       : `${noCountry} genomes have no country in their ENA record and are not mapped`;
-  return `n = ${mapped + noCountry} genomes; ${unmapped}. Country as recorded in ENA; the source table assigns countries to all genomes.`;
+  return `n = ${mapped + noCountry} genomes; ${unmapped}. Dot area shows the number of genomes. Country as recorded in ENA; the source table assigns countries to all genomes.`;
 }
 
 /** Heatmap tooltip for one clone x family (x period) cell. */

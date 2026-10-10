@@ -11,7 +11,8 @@ beforeAll(async () => {
   await createViews(conn);
 });
 
-const A = { ...EMPTY_FILTERS, studies: ["study-a"] };
+const PASS_ONLY = { ...EMPTY_FILTERS, hideQcWarnings: true };
+const A = { ...PASS_ONLY, studies: ["study-a"] };
 const ALL = { ...A, hideQcWarnings: false };
 
 describe("headline", () => {
@@ -100,7 +101,7 @@ describe("isolate table", () => {
 
 describe("studies", () => {
   it("counts a genome shared by two studies once per study", async () => {
-    expect((await headline(conn, EMPTY_FILTERS)).isolates).toBe(7); // 5 QC-passing in study-a, plus F1 and G1 in study-b
+    expect((await headline(conn, PASS_ONLY)).isolates).toBe(7); // 5 QC-passing in study-a, plus F1 and G1 in study-b
   });
 });
 

@@ -93,7 +93,7 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
   const n = loaded?.n ?? 0;
   if (error) return <FigureError error={error} />;
   return (
-    <FigureFrame figure="heatmap" title="Carbapenemase family by clone" caption={`n = ${n} genomes`} table={table}>
+    <FigureFrame figure="heatmap" title="Carbapenemase family by clone" caption={`n = ${n} genomes. A genome can carry more than one family, so a row can add up to more than 100%.`} table={table}>
       {data && (
         <Heatmap cells={data} selected={selected} onPick={onPick} byPeriod={byPeriod} onByPeriod={setByPeriod} theme={theme} />
       )}
@@ -185,7 +185,8 @@ function AgreementFigure({ info, theme }: { info: StudyInfo; theme: Theme }) {
     }),
     [agreement],
   );
-  const referenceName = info.reference?.name ?? "reference";
+  // The full name (with snapshot) is in How we know; figure labels use the short name.
+  const referenceName = (info.reference?.name ?? "reference").split(" (")[0];
   return (
     <FigureFrame
       figure="agreement"

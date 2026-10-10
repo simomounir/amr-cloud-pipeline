@@ -29,15 +29,29 @@ export const OTHER_CLASS = "Other";
 const OTHER_COLOUR = "#898781"; // the palette's muted neutral, same in both modes
 
 /** Legend order and colours for drug classes given most-common first; classes past the 8th become "Other". */
+// Each common drug class owns one palette slot, so a class keeps its colour on every page and
+// whatever its rank; rarer classes share "Other".
+const DRUG_CLASS_SLOTS = [
+  "BETA-LACTAM",
+  "AMINOGLYCOSIDE",
+  "QUINOLONE",
+  "SULFONAMIDE",
+  "TRIMETHOPRIM",
+  "MACROLIDE",
+  "PHENICOL",
+  "TETRACYCLINE",
+] as const;
+
 export function drugClassScale(classes: string[], theme: Theme): { domain: string[]; range: string[]; fold: (c: string) => string } {
   const palette = CATEGORICAL[theme];
-  const named = [...new Set(classes)];
-  const kept = named.length > palette.length ? named.slice(0, palette.length) : named;
-  const folded = named.length > kept.length;
+  const present = new Set(classes);
+  const kept = DRUG_CLASS_SLOTS.filter((c) => present.has(c));
+  const folded = [...present].some((c) => !(DRUG_CLASS_SLOTS as readonly string[]).includes(c));
+  const range = kept.map((c) => palette[DRUG_CLASS_SLOTS.indexOf(c)]);
   return {
-    domain: folded ? [...kept, OTHER_CLASS] : kept,
-    range: folded ? [...palette.slice(0, kept.length), OTHER_COLOUR] : palette.slice(0, kept.length),
-    fold: (c) => (kept.includes(c) ? c : OTHER_CLASS),
+    domain: folded ? [...kept, OTHER_CLASS] : [...kept],
+    range: folded ? [...range, OTHER_COLOUR] : range,
+    fold: (c) => ((kept as string[]).includes(c) ? c : OTHER_CLASS),
   };
 }
 

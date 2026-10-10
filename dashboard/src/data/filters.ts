@@ -29,7 +29,7 @@ export const EMPTY_FILTERS: Filters = {
   yearMin: null,
   yearMax: null,
   carbapenemaseOnly: false,
-  hideQcWarnings: true,
+  hideQcWarnings: false,
   includeIntrinsic: false,
 };
 

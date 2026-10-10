@@ -15,9 +15,6 @@ function safeDecode(raw: string): string | null {
   }
 }
 
-/** QC-warning genomes are hidden by default on Explore, shown by default on a study page. */
-const hidesQcByDefault = (route: Route) => route.page !== "study";
-
 function parseRoute(path: string): Route {
   const parts = path.replace(/^\/+/, "").split("/");
   if (parts[0] === "study" && isStudySlug(parts[1])) return { page: "study", study: parts[1] };
@@ -51,14 +48,13 @@ export function parseHash(hash: string): { route: Route; filters: Partial<Filter
     delete filters.yearMax;
   }
   const route = parseRoute(path);
-  if (filters.hideQcWarnings === undefined && !hidesQcByDefault(route)) filters.hideQcWarnings = false;
   return { route, filters };
 }
 
 export function toHash(requested: Route, filters: Partial<Filters> = {}): string {
   // A study that is not a slug cannot be parsed back, so it is written as the home page.
   const route: Route = requested.page === "study" && !isStudySlug(requested.study) ? { page: "home" } : requested;
-  const f = { ...EMPTY_FILTERS, hideQcWarnings: hidesQcByDefault(route), ...filters };
+  const f = { ...EMPTY_FILTERS, ...filters };
   const path = route.page === "home" ? "/" : route.page === "study" ? `/study/${route.study}` : `/${route.page}`;
   const parts: string[] = [];
   for (const [key, field] of Object.entries(LISTS)) {
@@ -68,6 +64,7 @@ export function toHash(requested: Route, filters: Partial<Filters> = {}): string
   if (f.yearMax !== null) parts.push(`to=${f.yearMax}`);
   if (f.carbapenemaseOnly) parts.push("carb=1");
   if (f.includeIntrinsic) parts.push("intrinsic=1");
-  if (f.hideQcWarnings !== hidesQcByDefault(route)) parts.push(f.hideQcWarnings ? "qc=pass" : "qc=all");
+  // Genomes with QC warnings are included by default on every page; qc=pass hides them.
+  if (f.hideQcWarnings) parts.push("qc=pass");
   return `#${path}${parts.length ? `?${parts.join("&")}` : ""}`;
 }

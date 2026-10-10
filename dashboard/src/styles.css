@@ -390,3 +390,4 @@ footer {
   .pipeline svg.pipeline-v { display: block; }
 }
 .page-head .subtitle { margin: 0 0 12px; }
+.footer-studies { list-style: none; padding: 0; margin: 4px 0; }

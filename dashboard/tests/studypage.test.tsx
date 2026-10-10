@@ -71,8 +71,8 @@ test("Run facts: Nextflow session as plain text, cost per analysed genome, wall 
 });
 
 test("the QC toggle is ticked when warnings are included", () => {
-  const on = renderToStaticMarkup(<StudyPage {...withInfo} filters={{ ...EMPTY_FILTERS, hideQcWarnings: false }} study="ok" />);
-  const off = renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />);
+  const on = renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />);
+  const off = renderToStaticMarkup(<StudyPage {...withInfo} filters={{ ...EMPTY_FILTERS, hideQcWarnings: true }} study="ok" />);
   expect(on).toMatch(/<input type="checkbox" checked=""[^>]*\/> Include genomes with QC warnings/);
   expect(off).not.toMatch(/checked=""[^>]*\/> Include genomes with QC warnings/);
 });

@@ -37,6 +37,10 @@ function download(text: string, name: string) {
 /** `showStudy` adds a first Study column (and CSV column) for tables that span several studies. */
 export function IsolateTable({ rows, showStudy = false }: { rows: IsolateRow[]; showStudy?: boolean }) {
   const columns = useMemo(() => (showStudy ? (["study", ...COLUMNS] as (keyof IsolateRow)[]) : COLUMNS), [showStudy]);
+  // Genomes from ENA are named by their run accession, so a separate Run column would repeat the
+  // Sample column; show it only when they differ. The CSV always keeps both.
+  const runIsSample = useMemo(() => rows.every((r) => !r.run_accession || r.run_accession === r.sample), [rows]);
+  const shownColumns = useMemo(() => (runIsSample ? columns.filter((c) => c !== "run_accession") : columns), [columns, runIsSample]);
   const [sort, setSort] = useState<{ key: keyof IsolateRow; asc: boolean }>({ key: "sample", asc: true });
   const [page, setPage] = useState(0);
   const sorted = useMemo(
@@ -54,19 +58,19 @@ export function IsolateTable({ rows, showStudy = false }: { rows: IsolateRow[]; 
   return (
     <>
       <div className="table-actions">
-        <button onClick={() => download(toCsv(sorted as unknown as Record<string, unknown>[], columns), "isolates.csv")}>
+        <button onClick={() => download(toCsv(sorted as unknown as Record<string, unknown>[], columns), "genomes.csv")}>
           Download CSV
         </button>
-        <span data-testid="isolate-count">{rows.length} isolates</span>
+        <span data-testid="isolate-count">{rows.length} {rows.length === 1 ? "genome" : "genomes"}</span>
       </div>
       <div className="table-scroll">
         <table>
           <thead>
             <tr>
-              {columns.map((c) => (
+              {shownColumns.map((c) => (
                 <th key={c} aria-sort={sort.key === c ? (sort.asc ? "ascending" : "descending") : "none"}>
                   <button onClick={() => setSort({ key: c, asc: sort.key === c ? !sort.asc : true })}>
-                    {HEADERS[c]}
+                    {c === "sample" && runIsSample ? "Genome (ENA run)" : HEADERS[c]}
                   </button>
                 </th>
               ))}
@@ -85,9 +89,11 @@ export function IsolateTable({ rows, showStudy = false }: { rows: IsolateRow[]; 
                     r.sample
                   )}
                 </td>
-                {COLUMNS.slice(1).map((c) => (
-                  <td key={c}>{c === "source_category" ? r[c].replace(/_/g, " ") : (r[c] ?? "")}</td>
-                ))}
+                {COLUMNS.slice(1)
+                  .filter((c) => !(runIsSample && c === "run_accession"))
+                  .map((c) => (
+                    <td key={c}>{c === "source_category" ? r[c].replace(/_/g, " ") : (r[c] ?? "")}</td>
+                  ))}
               </tr>
             ))}
           </tbody>

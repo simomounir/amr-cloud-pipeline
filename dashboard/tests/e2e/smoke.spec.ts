@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 test("dashboard renders, filters and exports", async ({ page }) => {
-  await page.goto("./#/explore?study=study-a");
+  await page.goto("./#/explore?study=study-a&qc=pass");
   const isolates = page.getByTestId("headline-isolates");
   await expect(isolates).toHaveText("5");
-  for (const panel of ["Resistance over time", "Most common acquired AMR elements", "Isolates"]) {
+  for (const panel of ["Resistance over time", "Most common acquired AMR elements", "Genomes"]) {
     await expect(page.getByRole("heading", { name: panel, exact: true })).toBeVisible();
   }
   await expect(page.locator("figure svg").first()).toBeVisible();
@@ -21,7 +21,7 @@ test("dashboard renders, filters and exports", async ({ page }) => {
   expect(text.trim().split("\n")).toHaveLength(3);
   await expect(page.getByText("Public data; demonstrates a method, not surveillance findings.")).toBeVisible();
   // F7's analysis failed: it is counted in the footer, not in any chart or table.
-  await expect(page.getByTestId("footer-counts-study-a")).toHaveText("study-a: 6 analysed · 1 failed analysis");
+  await expect(page.getByTestId("footer-counts-study-a")).toHaveText("study-a: 6 analysed · 1 failed");
   // The dataset name links to its release notes (study, cost, agreement checks).
   await expect(page.getByRole("link", { name: "dataset-study-a-2026-10-01" })).toHaveAttribute(
     "href",
@@ -30,13 +30,13 @@ test("dashboard renders, filters and exports", async ({ page }) => {
 });
 
 test("timeline axis says it counts per family", async ({ page }) => {
-  await page.goto("./#/explore?study=study-a");
+  await page.goto("./#/explore?study=study-a&qc=pass");
   await expect(page.getByTestId("headline-isolates")).toHaveText("5");
-  await expect(page.locator("figure svg").getByText("Isolates per carbapenemase family", { exact: false })).toBeVisible();
+  await expect(page.locator("figure svg").getByText("Genomes per carbapenemase family", { exact: false })).toBeVisible();
 });
 
 test("a ticked filter stays visible when its count drops to zero", async ({ page }) => {
-  await page.goto("./#/explore?study=study-a");
+  await page.goto("./#/explore?study=study-a&qc=pass");
   const isolates = page.getByTestId("headline-isolates");
   await expect(isolates).toHaveText("5");
   await page.getByRole("checkbox", { name: /United States/ }).check();
@@ -51,9 +51,9 @@ test("a ticked filter stays visible when its count drops to zero", async ({ page
 });
 
 test("intrinsic genes are hidden by default and can be shown", async ({ page }) => {
-  await page.goto("./#/explore?study=study-a");
+  await page.goto("./#/explore?study=study-a&qc=pass");
   await expect(page.getByTestId("headline-isolates")).toHaveText("5");
-  await expect(page.getByText(/over-represent resistant, outbreak-associated isolates/)).toBeVisible();
+  await expect(page.getByText(/over-represent resistant, outbreak-associated genomes/)).toBeVisible();
   const chart = page.locator("section", { has: page.getByRole("heading", { name: "Most common acquired AMR elements" }) });
   await expect(chart.locator("svg").getByText("fosA", { exact: true })).toHaveCount(0);
   await page.getByRole("checkbox", { name: "Include intrinsic genes" }).check();
@@ -76,7 +76,7 @@ test("an unknown study route says so and links home", async ({ page }) => {
 });
 
 test("chart tooltips follow the theme in dark mode", async ({ page }) => {
-  await page.goto("./#/explore?study=study-a");
+  await page.goto("./#/explore?study=study-a&qc=pass");
   await expect(page.getByTestId("headline-isolates")).toHaveText("5");
   await page.getByRole("button", { name: /Switch to dark mode/ }).click();
   const figure = page.locator("figure").first();

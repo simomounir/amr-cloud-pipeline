@@ -43,14 +43,15 @@ test("distinguishingFamily outlines only multi-family combos that share a first 
   expect(distinguishingFamily("KPC+VIM", combos)).toBeNull();
 });
 
-test("drugClassScale gives each class a palette slot per theme and folds the ones past the eighth into Other", () => {
-  const few = drugClassScale(["BETA-LACTAM", "AMINOGLYCOSIDE", "BETA-LACTAM"], "light");
-  expect(few.domain).toEqual(["BETA-LACTAM", "AMINOGLYCOSIDE"]);
-  expect(few.range).toEqual(["#2a78d6", "#eb6834"]);
-  expect(drugClassScale(["A"], "dark").range).toEqual(["#3987e5"]);
-  const many = drugClassScale(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"], "dark");
-  expect(many.domain).toEqual(["a", "b", "c", "d", "e", "f", "g", "h", "Other"]);
-  expect(many.range).toHaveLength(9);
-  expect(many.fold("i")).toBe("Other");
-  expect(many.fold("h")).toBe("h");
+test("drugClassScale gives each drug class a fixed colour, whatever its rank, and folds rare ones into Other", () => {
+  const a = drugClassScale(["AMINOGLYCOSIDE", "BETA-LACTAM"], "light");
+  const b = drugClassScale(["BETA-LACTAM", "QUINOLONE", "AMINOGLYCOSIDE"], "light");
+  const colour = (s: ReturnType<typeof drugClassScale>, c: string) => s.range[s.domain.indexOf(c)];
+  expect(colour(a, "AMINOGLYCOSIDE")).toBe(colour(b, "AMINOGLYCOSIDE"));
+  expect(colour(a, "BETA-LACTAM")).toBe("#2a78d6");
+  expect(colour(drugClassScale(["BETA-LACTAM"], "dark"), "BETA-LACTAM")).toBe("#3987e5");
+  const rare = drugClassScale(["BETA-LACTAM", "BLEOMYCIN", "FOSFOMYCIN"], "light");
+  expect(rare.domain).toEqual(["BETA-LACTAM", "Other"]);
+  expect(rare.fold("BLEOMYCIN")).toBe("Other");
+  expect(rare.fold("BETA-LACTAM")).toBe("BETA-LACTAM");
 });
