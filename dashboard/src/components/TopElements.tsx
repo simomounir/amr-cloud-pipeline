@@ -14,7 +14,7 @@ export function TopElements({ rows, theme }: { rows: ElementRow[]; theme: Theme 
       height: 50 + rows.length * 22,
       marginLeft: 130,
       marginRight: 40,
-      x: { domain: [0, 1], tickFormat: "%", label: "Share of shown isolates", grid: true },
+      x: { domain: [0, 1], tickFormat: "%", label: "Share of shown genomes", grid: true },
       y: { label: null, domain: rows.map((r) => r.gene_symbol) },
       color: { legend: true, domain: scale.domain, range: scale.range },
       marks: [
@@ -33,7 +33,7 @@ export function TopElements({ rows, theme }: { rows: ElementRow[]; theme: Theme 
   return (
     <PlotFigure
       options={options}
-      summary={`Top ${rows.length} AMR elements; most common ${rows[0]?.gene_symbol ?? "none"} in ${pct(rows[0]?.share ?? 0)} of shown isolates`}
+      summary={`Top ${rows.length} AMR elements; most common ${rows[0]?.gene_symbol ?? "none"} in ${pct(rows[0]?.share ?? 0)} of shown genomes`}
     />
   );
 }

@@ -16,19 +16,18 @@ describe("url state", () => {
     expect(hash).toBe("#/study/s1?clone=ST147&family=NDM,OXA-48-like&from=2013");
     expect({ ...EMPTY_FILTERS, ...parseHash(hash).filters }).toEqual(filters);
   });
-  it("QC warnings default to shown on a study route and hidden on explore", () => {
+  it("QC warnings are included by default on every route; qc=pass hides", () => {
     const study = { page: "study", study: "s1" } as const;
-    expect(parseHash("#/study/s1").filters.hideQcWarnings).toBe(false);
-    expect(parseHash("#/study/s1?qc=pass").filters.hideQcWarnings).toBe(true);
-    expect(parseHash("#/study/s1?qc=all").filters.hideQcWarnings).toBe(false);
-    expect({ ...EMPTY_FILTERS, ...parseHash("#/explore").filters }.hideQcWarnings).toBe(true);
-    expect(parseHash("#/explore?qc=all").filters.hideQcWarnings).toBe(false);
-    expect(parseHash("#/explore?qc=pass").filters.hideQcWarnings).toBe(true);
+    for (const route of ["study/s1", "explore"]) {
+      expect({ ...EMPTY_FILTERS, ...parseHash(`#/${route}`).filters }.hideQcWarnings).toBe(false);
+      expect(parseHash(`#/${route}?qc=pass`).filters.hideQcWarnings).toBe(true);
+      expect(parseHash(`#/${route}?qc=all`).filters.hideQcWarnings).toBe(false); // legacy
+    }
     expect(toHash(study, { ...EMPTY_FILTERS, hideQcWarnings: true })).toBe("#/study/s1?qc=pass");
     expect(toHash(study, { ...EMPTY_FILTERS, hideQcWarnings: false })).toBe("#/study/s1");
     expect(toHash(study)).toBe("#/study/s1");
-    expect(toHash({ page: "explore" }, { hideQcWarnings: false })).toBe("#/explore?qc=all");
-    expect(toHash({ page: "explore" }, { hideQcWarnings: true })).toBe("#/explore");
+    expect(toHash({ page: "explore" }, { hideQcWarnings: false })).toBe("#/explore");
+    expect(toHash({ page: "explore" }, { hideQcWarnings: true })).toBe("#/explore?qc=pass");
     expect(toHash({ page: "explore" })).toBe("#/explore");
   });
   it("round-trips the QC choice on both routes", () => {

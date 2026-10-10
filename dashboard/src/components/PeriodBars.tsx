@@ -6,6 +6,29 @@ import { PlotFigure } from "./PlotFigure";
 
 const isMulti = (combo: string) => combo.includes("+");
 
+const SHORT_PERIOD: Record<string, string> = { "2012 or earlier": "to 2012", "2013-2017": "2013–17", "2018 or later": "2018 on" };
+
+/** Below this width the clones stack (one row of bars each) instead of sitting side by side. */
+const NARROW = 560;
+
+interface Carriers {
+  clone: string;
+  period: string;
+  share: number;
+}
+
+/** Per clone and period, the share of genomes that carry any carbapenemase (everything but "none"). */
+export function carrierShares(rows: MixRow[]): Carriers[] {
+  const sums = new Map<string, Carriers>();
+  for (const r of rows) {
+    const key = `${r.clone}|${r.period}`;
+    const entry = sums.get(key) ?? { clone: r.clone, period: r.period, share: 0 };
+    if (r.combo !== "none") entry.share += r.share;
+    sums.set(key, entry);
+  }
+  return [...sums.values()];
+}
+
 export interface PeriodSelection {
   clones: string[];
   periods: string[];
@@ -28,7 +51,7 @@ export function PeriodBars({
 }) {
   const combos = useMemo(() => sortCombos(rows.map((r) => r.combo)), [rows]);
   const clones = useMemo(() => [...new Set(rows.map((r) => r.clone))].sort(), [rows]);
-  const options = useMemo<Plot.PlotOptions>(() => {
+  const options = useMemo(() => {
     const has = (list: string[], v: string) => list.length === 0 || list.includes(v);
     const families = selected.families ?? [];
     const hasSelection = selected.clones.length + selected.periods.length + selected.combos.length + families.length > 0;
@@ -40,19 +63,32 @@ export function PeriodBars({
       const family = distinguishingFamily(combo, combos);
       return family === null ? "var(--surface)" : familyColour(family, theme);
     };
-    return {
-        height: 360,
-        marginBottom: 70,
+    const carriers = carrierShares(rows);
+    return (width: number): Plot.PlotOptions => {
+      const narrow = width < NARROW;
+      // Wide: one panel per clone, side by side. Narrow: the panels stack, each a row of three bars.
+      const facet = narrow ? { fy: "clone" } : { fx: "clone" };
+      const periodWidth = narrow ? width - 60 : (width - 60) / Math.max(1, clones.length);
+      const rotate = periodWidth < 270;
+      return {
+        height: narrow ? clones.length * 250 : 420,
+        marginTop: 56,
+        marginBottom: narrow ? 28 : rotate ? 70 : 36,
         marginLeft: 48,
-        fx: { domain: clones, label: null },
-        x: { domain: PERIOD_ORDER, label: null, tickRotate: -35 },
-        y: { percent: true, label: "% of genomes", grid: true },
+        marginRight: narrow ? 70 : 0,
+        // Clone names are drawn as text above each panel (below), clear of the carrier numbers.
+        fx: { domain: clones, axis: null, padding: 0.12 },
+        fy: { domain: clones, axis: null, padding: 0.35 },
+        // Stacked panels each get their own period axis, in short form so it fits a phone.
+        x: { domain: PERIOD_ORDER, label: null, tickRotate: rotate ? -35 : 0, padding: 0.25, ...(narrow ? { axis: null } : {}) },
+        y: { percent: true, label: "% of genomes", grid: true, ticks: narrow ? 3 : 5 },
         color: { domain: combos, range: combos.map((c) => familyColour(comboFamily(c), theme)) },
+        style: { overflow: "visible" },
         marks: [
           Plot.barY(
             rows,
             Plot.stackY({ order: combos }, {
-              fx: "clone",
+              ...facet,
               x: "period",
               y: "share",
               fill: "combo",
@@ -66,8 +102,32 @@ export function PeriodBars({
             }),
           ),
           Plot.ruleY([0]),
+          ...(narrow ? [Plot.axisX({ facetAnchor: null, tickSize: 0, tickFormat: (p: string) => SHORT_PERIOD[p] ?? p })] : []),
+          Plot.text(clones, {
+            [narrow ? "fy" : "fx"]: (d: string) => d,
+            frameAnchor: narrow ? "top-left" : "top",
+            dy: -36,
+            text: (d: string) => d,
+            fill: "var(--ink)",
+            fontWeight: 700,
+            fontSize: 14,
+            pointerEvents: "none",
+          }),
+          // The number above each bar: how many of its genomes carry a carbapenemase at all.
+          Plot.text(carriers, {
+            ...facet,
+            x: "period",
+            y: 1,
+            dy: -10,
+            text: (d: Carriers) => `${Math.round(d.share * 100)}%`,
+            fill: "var(--ink)",
+            fontWeight: 600,
+            fontSize: 13,
+            pointerEvents: "none",
+          }),
         ],
-    } as Plot.PlotOptions;
+      } as Plot.PlotOptions;
+    };
   }, [rows, clones, combos, selected, theme]);
   const pick = useCallback((d: unknown) => onPick((d as MixRow).clone, (d as MixRow).period, (d as MixRow).combo), [onPick]);
   return (

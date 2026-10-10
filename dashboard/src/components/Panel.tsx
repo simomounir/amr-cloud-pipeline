@@ -23,7 +23,7 @@ export function Panel({
         </p>
       ) : empty ? (
         <p className="panel-empty">
-          No isolates match these filters. {onClear && <button onClick={onClear}>Clear filters</button>}
+          No genomes match these filters. {onClear && <button onClick={onClear}>Clear filters</button>}
         </p>
       ) : (
         children

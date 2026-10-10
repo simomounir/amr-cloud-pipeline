@@ -40,6 +40,8 @@ export interface StudyInfo {
   background: string[];
   findings: Finding[];
   caveats?: string[];
+  /** Hand-written interpretation ("What this means" in story.md); absent in older releases. */
+  meaning?: string[];
   reference: { name: string } | null;
   run: RunFacts;
   agreement: Agreement | null;

@@ -270,3 +270,11 @@ def test_mixed_ndm_and_oxa_get_one_sorted_family(tmp_path):
     assert info["agreement"]["family_matrix"] == [
         {"ours": "NDM+OXA-48-like", "reference": "NDM+OXA-48-like", "genomes": 1}
     ]
+
+
+def test_story_what_this_means_section():
+    story = STORY.replace(
+        "## Findings", "## What this means\nFirst *meaning*.\n\nSecond.\n\n## Findings"
+    )
+    assert parse_story(story)["meaning"] == ["First *meaning*.", "Second."]
+    assert parse_story(STORY)["meaning"] == []

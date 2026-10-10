@@ -30,8 +30,8 @@ export function CountryMap({
       missing,
       placedCount: placed.length,
       options: {
+        // No fixed height: Plot derives it from the projection's aspect, so the map fills its width.
         projection: "equal-earth",
-        height: 420,
         style: { background: "transparent", color: "var(--ink)" },
         r: { range: [3, 18] },
         marks: [
@@ -57,7 +57,7 @@ export function CountryMap({
   const onPickRow = useCallback((d: unknown) => onPick((d as CountryRow).country), [onPick]);
   return (
     <>
-      <PlotFigure options={options} summary={`${placedCount} countries on the map`} onPick={onPickRow} />
+      <PlotFigure options={options} maxWidth={960} summary={`${placedCount} countries on the map`} onPick={onPickRow} />
       {missing.length > 0 && (
         <p className="note">No map shape for: {missing.map((m) => `${m.country} (${m.genomes})`).join(", ")}.</p>
       )}

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_FILTERS, toWhere } from "../src/data/filters";
 
 describe("toWhere", () => {
-  it("hides QC warnings by default", () => {
-    expect(toWhere(EMPTY_FILTERS)).toEqual({ sql: "WHERE qc_status = 'pass'", params: [] });
+  it("includes QC warnings by default (no qc clause)", () => {
+    expect(toWhere(EMPTY_FILTERS)).toEqual({ sql: "", params: [] });
+    expect(toWhere({ ...EMPTY_FILTERS, hideQcWarnings: true })).toEqual({ sql: "WHERE qc_status = 'pass'", params: [] });
   });
 
   it("is empty when nothing is filtered", () => {
@@ -38,7 +39,7 @@ describe("toWhere", () => {
   });
 
   it("can omit one list filter (for that filter's own option counts)", () => {
-    const where = toWhere({ ...EMPTY_FILTERS, countries: ["India"], sts: ["ST147"] }, "countries");
+    const where = toWhere({ ...EMPTY_FILTERS, countries: ["India"], sts: ["ST147"], hideQcWarnings: true }, "countries");
     expect(where.sql).toBe("WHERE st IN (?) AND qc_status = 'pass'");
     expect(where.params).toEqual(["ST147"]);
   });

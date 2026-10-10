@@ -17,7 +17,7 @@ export function FilterBar({
   optionRows: Partial<Record<ListFilter, OptionRow[]>>;
   years: { min: number | null; max: number | null };
 }) {
-  // Keep ticked values listed (with 0) even when other filters leave them no isolates.
+  // Keep ticked values listed (with 0) even when other filters leave them no genomes.
   const listed = (key: ListFilter): OptionRow[] => {
     const rows = optionRows[key] ?? [];
     const missing = filters[key].filter((v) => !rows.some((o) => o.value === v));
@@ -75,10 +75,10 @@ export function FilterBar({
       <label>
         <input
           type="checkbox"
-          checked={filters.hideQcWarnings}
-          onChange={(e) => onChange({ ...filters, hideQcWarnings: e.target.checked })}
+          checked={!filters.hideQcWarnings}
+          onChange={(e) => onChange({ ...filters, hideQcWarnings: !e.target.checked })}
         />{" "}
-        Hide QC warnings
+        Include genomes with QC warnings
       </label>
       <button onClick={() => onChange({ ...EMPTY_FILTERS, includeIntrinsic: filters.includeIntrinsic })}>Clear filters</button>
     </aside>

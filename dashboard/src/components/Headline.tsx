@@ -10,7 +10,7 @@ export function Headline({ data }: { data: HeadlineData }) {
         ? `${data.year_min}`
         : `${data.year_min}–${data.year_max}`;
   const stats = [
-    { label: "Isolates", value: String(data.isolates), id: "headline-isolates" },
+    { label: "Genomes", value: String(data.isolates), id: "headline-isolates" },
     { label: "Carry a carbapenemase", value: pct(data.carbapenemase_share) },
     { label: "Carry CTX-M (ESBL)", value: pct(data.ctxm_share) },
     { label: "Countries", value: String(data.countries) },

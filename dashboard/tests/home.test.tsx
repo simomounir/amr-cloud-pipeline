@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-import { StatTiles } from "../src/components/StatTiles";
+import { ProjectFacts } from "../src/components/ProjectFacts";
 import { StudyCard } from "../src/components/StudyCard";
 import type { StudyInfo } from "../src/data/studies";
 import { Home } from "../src/pages/Home";
@@ -45,31 +45,28 @@ test("StudyCard with a study.json shows the question, key finding and cost per a
   expect(html).toContain("4 genomes analysed · $0.500 per analysed genome");
 });
 
-test("StatTiles sums the studies it is given, with the median cost and pooled agreement", () => {
-  const html = renderToStaticMarkup(
-    <StatTiles infos={[info("a", 100, 3, 9, 10), info("b", 50, 5, 0, 10), info("c", 50, null)]} studyCount={3} />,
-  );
-  expect(html).toContain('data-testid="tile-genomes">200<');
-  expect(html).toContain('data-testid="tile-cost">$0.065<'); // median of $0.030 and $0.100 (c has no cost)
-  expect(html).toContain('data-testid="tile-agreement">45%<');
-  expect(html).toContain('data-testid="tile-studies">3<');
+test("ProjectFacts sums the studies it is given, with the median cost and pooled agreement", () => {
+  const html = renderToStaticMarkup(<ProjectFacts infos={[info("a", 100, 3, 9, 10), info("b", 50, 5, 0, 10), info("c", 50, null)]} />);
+  expect(html).toContain('data-testid="fact-genomes">200<');
+  expect(html).toContain('data-testid="fact-cost">$0.065<'); // median of $0.030 and $0.100 (c has no cost)
+  expect(html).toContain('data-testid="fact-agreement">45%<');
 });
 
-test("StatTiles without any reference calls or cost says n/a", () => {
-  const html = renderToStaticMarkup(<StatTiles infos={[]} studyCount={0} />);
-  expect(html).toContain('data-testid="tile-genomes">0<');
-  expect(html).toContain('data-testid="tile-cost">n/a<');
-  expect(html).toContain('data-testid="tile-agreement">n/a<');
+test("ProjectFacts without any reference calls or cost says n/a", () => {
+  const html = renderToStaticMarkup(<ProjectFacts infos={[]} />);
+  expect(html).toContain('data-testid="fact-genomes">0<');
+  expect(html).toContain('data-testid="fact-cost">n/a<');
+  expect(html).toContain('data-testid="fact-agreement">n/a<');
 });
 
-test("Home skips studies without study.json in the tiles but still counts and lists them", () => {
+test("Home skips studies without study.json in the facts but still lists them, and links the latest study", () => {
   const studies = [
     { study: "a", release: "r" },
     { study: "old", release: "r" },
   ];
   const html = renderToStaticMarkup(<Home studies={studies} infos={{ a: info("a", 7, 7), old: null }} failed={[{ study: "bad", error: "boom" }]} />);
-  expect(html).toContain('data-testid="tile-genomes">7<');
-  expect(html).toContain('data-testid="tile-studies">3<');
+  expect(html).toContain('data-testid="fact-genomes">7<');
+  expect(html).toContain('class="cta" href="#/study/a">Read the study: Title of a</a>');
   expect(html).toContain("predates study pages");
   expect(html).toContain("This study could not be loaded: boom");
 });

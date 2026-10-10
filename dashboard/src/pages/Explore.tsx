@@ -31,44 +31,50 @@ export function Explore({
   }
   const empty = data.headline.data?.isolates === 0;
   return (
-    <div className="layout">
-      <FilterBar
-        filters={filters}
-        onChange={setFilters}
-        years={years}
-        optionRows={{
-          studies: data.studies.data,
-          countries: data.countries.data,
-          sources: data.sources.data,
-          sts: data.sts.data,
-        }}
-      />
-      <main>
-        <Panel title="Overview" error={data.headline.error}>
-          {data.headline.data && <Headline data={data.headline.data} />}
-          <p className="note">
-            Public genomes over-represent resistant, outbreak-associated isolates; these percentages describe this
-            dataset, not prevalence.
-          </p>
-        </Panel>
-        <Panel title="Resistance over time" error={data.timeline.error} empty={empty} onClear={clear}>
-          {data.timeline.data && <Timeline rows={data.timeline.data} theme={theme} />}
-        </Panel>
-        <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
-          <label className="panel-option">
-            <input
-              type="checkbox"
-              checked={filters.includeIntrinsic}
-              onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })}
-            />{" "}
-            Include intrinsic genes
-          </label>
-          {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}
-        </Panel>
-        <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
-          {data.isolates.data && <IsolateTable rows={data.isolates.data} showStudy />}
-        </Panel>
-      </main>
-    </div>
+    <>
+      <header className="page-head">
+        <h1>Explore all genomes</h1>
+        <p className="lede">Every analysed genome across the published studies. Filter on the left; the figures and the table update together.</p>
+      </header>
+      <div className="layout">
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          years={years}
+          optionRows={{
+            studies: data.studies.data,
+            countries: data.countries.data,
+            sources: data.sources.data,
+            sts: data.sts.data,
+          }}
+        />
+        <main>
+          <Panel title="Overview" error={data.headline.error}>
+            {data.headline.data && <Headline data={data.headline.data} />}
+            <p className="note">
+              Public genomes over-represent resistant, outbreak-associated genomes; these percentages describe this
+              dataset, not prevalence.
+            </p>
+          </Panel>
+          <Panel title="Resistance over time" error={data.timeline.error} empty={empty} onClear={clear}>
+            {data.timeline.data && <Timeline rows={data.timeline.data} theme={theme} />}
+          </Panel>
+          <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
+            <label className="panel-option">
+              <input
+                type="checkbox"
+                checked={filters.includeIntrinsic}
+                onChange={(e) => setFilters({ ...filters, includeIntrinsic: e.target.checked })}
+              />{" "}
+              Include intrinsic genes
+            </label>
+            {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}
+          </Panel>
+          <Panel title="Genomes" error={data.isolates.error} empty={empty} onClear={clear}>
+            {data.isolates.data && <IsolateTable rows={data.isolates.data} showStudy />}
+          </Panel>
+        </main>
+      </div>
+    </>
   );
 }

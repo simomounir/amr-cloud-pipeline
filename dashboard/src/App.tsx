@@ -22,7 +22,7 @@ export function App() {
 
   return (
     <div className="app">
-      {db && <Header studies={db.studies} infos={db.infos} route={route} theme={theme} onToggleTheme={toggle} />}
+      {db && <Header studies={db.studies} route={route} theme={theme} onToggleTheme={toggle} />}
       {fatal ? (
         <p className="fatal" role="alert">
           {fatal}

@@ -1,4 +1,4 @@
-import { REPO } from "../config";
+import { AUTHOR_URL, REPO } from "../config";
 import { footerEntries } from "../data/footer";
 import type { Manifest } from "../data/manifest";
 import type { AnalysisCounts } from "../data/queries";
@@ -24,7 +24,7 @@ export function Footer({
             <li key={e.study}>
               <a href={`${REPO}/releases/tag/${encodeURIComponent(e.release)}`}>{e.release}</a> · built {e.built} ·{" "}
               <span data-testid={`footer-counts-${e.study}`}>
-                {e.study}: {e.counts.analysed} analysed{e.counts.failed > 0 && ` · ${e.counts.failed} failed analysis`}
+                {e.study}: {e.counts.analysed} analysed{e.counts.failed > 0 && ` · ${e.counts.failed} failed`}
               </span>{" "}
               · schema {e.schema}
             </li>
@@ -36,7 +36,7 @@ export function Footer({
         )}
       </ul>
       <p>
-        <a href={REPO}>source code</a>
+        Built by <a href={AUTHOR_URL}>simomounir</a> · <a href={REPO}>source code</a>
       </p>
     </footer>
   );

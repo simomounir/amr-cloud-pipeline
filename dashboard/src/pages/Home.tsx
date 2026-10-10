@@ -1,7 +1,8 @@
 import { PipelineDiagram } from "../components/PipelineDiagram";
-import { StatTiles } from "../components/StatTiles";
+import { ProjectFacts } from "../components/ProjectFacts";
 import { StudyCard } from "../components/StudyCard";
 import type { StudyEntry, StudyInfo } from "../data/studies";
+import { toHash } from "../state/url";
 
 const STEPS = [
   "Pick a question and a cohort of public genomes; the study is a folder in the repository.",
@@ -21,25 +22,25 @@ export function Home({
   failed?: { study: string; error: string }[];
 }) {
   const loaded = studies.flatMap(({ study }) => (infos[study] ? [infos[study]] : []));
+  const latest = loaded.at(-1);
   return (
     <div className="home">
-      <header className="page-head">
-        <h1>Klebsiella AMR</h1>
-        <p className="subtitle">A project of the AMR Cloud Pipeline</p>
-        <p className="intro">
-          Public bacterial genomes are re-analysed in the cloud with one reproducible pipeline, and the results are
-          explored here without leaving your browser. <em>Klebsiella pneumoniae</em> for now — a WHO critical-priority
-          pathogen.
+      <header className="home-hero">
+        <h1>
+          Public <em>Klebsiella pneumoniae</em> genomes, re-analysed in the cloud and checked
+        </h1>
+        <p className="lede">
+          A reproducible pipeline on AWS Batch turns public sequencing reads from ENA into validated tables. Each study
+          asks one question of them, and this site queries the results in your browser.
         </p>
+        <ProjectFacts infos={loaded} />
+        {latest && (
+          <a className="cta" href={toHash({ page: "study", study: latest.study })}>
+            Read the study: {latest.title}
+          </a>
+        )}
+        <PipelineDiagram />
       </header>
-      <StatTiles infos={loaded} studyCount={studies.length + failed.length} />
-      <h2>How it works</h2>
-      <PipelineDiagram />
-      <ol className="how-steps">
-        {STEPS.map((s) => (
-          <li key={s}>{s}</li>
-        ))}
-      </ol>
       <h2>Studies</h2>
       <ul className="study-cards">
         {studies.map(({ study }) => (
@@ -49,6 +50,12 @@ export function Home({
           <StudyCard key={f.study} study={f.study} info={null} error={f.error} />
         ))}
       </ul>
+      <h2>How it works</h2>
+      <ol className="how-steps">
+        {STEPS.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ol>
     </div>
   );
 }

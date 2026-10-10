@@ -4,34 +4,34 @@ test("study page tells the story and links figures to the table", async ({ page 
   await page.goto("./#/study/study-a?qc=all");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Fixture study A");
   await expect(page.getByRole("heading", { name: /Heatmap finding/ })).toBeVisible();
-  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 genomes");
   // Click the ST147 x NDM heatmap cell (its tip title identifies it).
   await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().click();
   await expect(page.getByRole("button", { name: "Remove clone ST147" })).toBeVisible();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await expect(page).toHaveURL(/clone=ST147&family=NDM/);
   // The URL restores the selection.
   await page.reload();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await page.getByRole("button", { name: "Clear all" }).click();
-  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 genomes");
   await expect(page.getByRole("heading", { name: "Caveats" })).toBeVisible();
   await expect(page.getByText("Fixture caveat paragraph.")).toBeVisible();
 });
 
 test("a study page includes QC-warning genomes by default and the toggle hides them", async ({ page }) => {
   await page.goto("./#/study/study-a");
-  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates"); // F5 is a QC warning
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 genomes"); // F5 is a QC warning
   const toggle = page.getByRole("checkbox", { name: "Include genomes with QC warnings" });
   await expect(toggle).toBeChecked();
   await toggle.uncheck();
-  await expect(page.getByTestId("isolate-count")).toHaveText("5 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("5 genomes");
   await expect(page).toHaveURL(/qc=pass/);
   await page.reload();
   await expect(toggle).not.toBeChecked();
-  await expect(page.getByTestId("isolate-count")).toHaveText("5 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("5 genomes");
   await toggle.check();
-  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 genomes");
   await expect(page).not.toHaveURL(/qc=/);
 });
 
@@ -45,11 +45,11 @@ test("the map caption says how many genomes are not mapped and where countries c
 test("finding figures only highlight: a heatmap pick does not reshape the period bars", async ({ page }) => {
   await page.goto("./#/study/study-a");
   const bars = page.locator('[data-figure="periods"] svg g[aria-label="bar"] rect');
-  await expect(page.getByTestId("isolate-count")).toHaveText("6 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("6 genomes");
   const before = await bars.count();
   expect(before).toBeGreaterThan(0);
   await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().click();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await expect(bars).toHaveCount(before);
   await expect(page.locator('[data-figure="map"] svg [aria-label="Germany"]').first()).toBeVisible();
 });
@@ -58,7 +58,7 @@ test("a study without cohort or reference still renders", async ({ page }) => {
   await page.goto("./#/study/study-b");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Fixture study B");
   await expect(page.getByText("No reference calls for this study.")).toBeHidden(); // study-b has no agreement finding
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await expect(page.getByRole("heading", { name: "Caveats" })).toHaveCount(0);
 });
 
@@ -67,11 +67,11 @@ test("consecutive map picks each apply their own country filter", async ({ page 
   const map = page.locator('[data-figure="map"] svg');
   await map.locator('[aria-label="Germany"]').first().click();
   await expect(page.getByRole("button", { name: "Remove country Germany" })).toBeVisible();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await map.locator('[aria-label="India"]').first().click();
   await expect(page.getByRole("button", { name: "Remove country India" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove country Germany" })).toBeHidden();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   await expect(page).toHaveURL(/country=India/);
 });
 
@@ -97,7 +97,7 @@ test("a figure's table rows pick like the marks, from the keyboard", async ({ pa
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Remove clone ST147" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove carries NDM" })).toBeVisible();
-  await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+  await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
 });
 
 test.describe("touch", () => {
@@ -106,6 +106,17 @@ test.describe("touch", () => {
     await page.goto("./#/study/study-a?qc=all");
     await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().tap();
     await expect(page.getByRole("button", { name: "Remove clone ST147" })).toBeVisible();
-    await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
+    await expect(page.getByTestId("isolate-count")).toHaveText("2 genomes");
   });
+});
+
+test("a figure pick is confirmed in the sticky selection bar, in view", async ({ page }) => {
+  await page.goto("./#/study/study-a");
+  const bar = page.getByRole("region", { name: "Selection", exact: true });
+  await expect(bar).toContainText("Click a cell, bar or dot");
+  await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().click();
+  await expect(bar).toContainText("2 genomes");
+  await expect(bar).toBeInViewport();
+  await bar.getByRole("link", { name: /See them/ }).click();
+  await expect(page.getByRole("heading", { name: "Genomes behind your selection" })).toBeInViewport();
 });

@@ -36,6 +36,19 @@ Our sequence types agree with Pathogenwatch for 151 of 152 genomes and our carba
 for 150 of 152. One difference is a genome where we find blaGES-5, a carbapenemase the reference
 table does not list.
 
+## What this means
+Each high-risk clone pairs with a characteristic carbapenemase: ST258/512 with KPC, ST147 more and
+more with NDM and OXA-48-like enzymes, ST11 with both KPC and NDM. This agrees with what is widely
+reported for these lineages, a useful check that public genomes re-analysed with this pipeline
+recover known patterns.
+
+The shifts over time, ST147 and ST307 gaining carbapenemases, fit carbapenemase plasmids reaching
+clones that used to carry mainly ESBLs. With about 13 genomes per clone and period they are signals
+in this sample, not measured trends.
+
+The next question is whether the same clones are also gaining virulence genes: the convergence of
+carbapenem resistance and hypervirulence, the subject of the next study.
+
 ## Caveats
 Public genomes over-represent resistant and outbreak-associated isolates: these shares describe this cohort, not how common each enzyme is.
 
