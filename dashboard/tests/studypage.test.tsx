@@ -61,14 +61,13 @@ test("a study without clone/period data shows a note instead of empty figures", 
   expect(renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />)).toContain('data-figure="heatmap"');
 });
 
-test("How we know shows the Nextflow session as plain text and cost per analysed genome", () => {
+test("Run facts: Nextflow session as plain text, cost per analysed genome, wall time", () => {
   const html = renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />);
   expect(html).toContain("Nextflow session");
   expect(html).toContain("<code>20260101-abc</code>");
   expect(html).not.toContain("actions?query");
-  expect(html).toContain("Cost per analysed genome");
-  expect(html).toContain("$0.500");
-  expect(html).toContain("Pipeline wall time (first task to last)");
+  expect(html).toContain("$0.500 per analysed genome");
+  expect(html).toContain("min pipeline wall time");
 });
 
 test("the QC toggle is ticked when warnings are included", () => {
@@ -76,4 +75,19 @@ test("the QC toggle is ticked when warnings are included", () => {
   const off = renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />);
   expect(on).toMatch(/<input type="checkbox" checked=""[^>]*\/> Include genomes with QC warnings/);
   expect(off).not.toMatch(/checked=""[^>]*\/> Include genomes with QC warnings/);
+});
+
+test("the study page ends with What this means before the genomes and How we know", () => {
+  const info = { ...withInfo.infos.ok!, meaning: ["Clones pair with *carbapenemases*."] };
+  const html = renderToStaticMarkup(<StudyPage {...withInfo} infos={{ ok: info }} study="ok" />);
+  const order = ["What this means", "Genomes behind your selection", "How we know"].map((t) => html.indexOf(t));
+  expect(order.every((i) => i > 0)).toBe(true);
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(html).toContain("<em>carbapenemases</em>");
+});
+
+test("without a selection the bar explains how to pick", () => {
+  const html = renderToStaticMarkup(<StudyPage {...withInfo} study="ok" />);
+  expect(html).toContain("Click a cell, bar or dot to see the genomes behind it.");
+  expect(html).toContain('aria-live="polite"');
 });

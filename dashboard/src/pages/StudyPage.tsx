@@ -9,7 +9,6 @@ import { Predates } from "../components/Predates";
 import { PeriodBars } from "../components/PeriodBars";
 import { RichText } from "../components/RichText";
 import { Timeline } from "../components/Timeline";
-import { TopElements } from "../components/TopElements";
 import type { Connection } from "../data/connection";
 import { formatCostPerGenome, mapCaption } from "../data/format";
 import { EMPTY_FILTERS, type Filters } from "../data/filters";
@@ -229,66 +228,70 @@ function FindingFigure({ finding, info, props, hasCohort }: { finding: Finding; 
 
 const num = (v: number | null, digits = 2) => (v === null ? "not recorded" : v.toFixed(digits));
 
-function HowWeKnow({ info }: { info: StudyInfo }) {
-  const { run, agreement, reference, versions } = info;
-  const rows: [string, ReactNode][] = [
-    ["Total cost", run.cost_usd === null ? "not recorded" : `$${num(run.cost_usd)}`],
-    ["Cost per analysed genome", formatCostPerGenome(run)],
-    ["Instance-hours", num(run.instance_hours)],
-    ["Pipeline wall time (first task to last)", run.wall_time_minutes === null ? "not recorded" : `${num(run.wall_time_minutes, 0)} minutes`],
-    ["Nextflow session", <code key="session">{run.run_id}</code>],
-    ["AMRFinderPlus", versions.amrfinder.join(", ") || "unknown"],
-    ["AMRFinderPlus database", versions.amrfinder_db.join(", ") || "unknown"],
-  ];
+/** Run facts as one line of metadata: they matter for checking, not for the story. */
+function RunFacts({ info }: { info: StudyInfo }) {
+  const { run, versions } = info;
+  const parts: ReactNode[] = [];
+  if (run.cost_usd !== null) parts.push(`$${num(run.cost_usd)} total`);
+  if (run.cost_usd !== null) parts.push(`${formatCostPerGenome(run)} per analysed genome`);
+  if (run.instance_hours !== null) parts.push(`${num(run.instance_hours, 1)} instance-hours`);
+  if (run.wall_time_minutes !== null) parts.push(`${num(run.wall_time_minutes, 0)} min pipeline wall time`);
+  if (versions.amrfinder.length > 0) {
+    const db = versions.amrfinder_db.join(", ");
+    parts.push(`AMRFinderPlus ${versions.amrfinder.join(", ")}${db ? ` (database ${db})` : ""}`);
+  }
+  parts.push(
+    <>
+      Nextflow session <code>{run.run_id}</code>
+    </>,
+  );
+  return (
+    <p className="facts-line">
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span aria-hidden="true"> · </span>}
+          {part}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function HowWeKnow({ info, hasAgreementFigure }: { info: StudyInfo; hasAgreementFigure: boolean }) {
+  const { run, agreement, reference } = info;
   return (
     <section className="how-we-know" aria-labelledby="how-we-know-h">
       <h2 id="how-we-know-h">How we know</h2>
-      <h3>Cohort</h3>
       <p>
-        {run.selected} genomes were selected, {run.analysed} were analysed
-        {run.failed.length > 0 ? ` and ${run.failed.length} failed analysis: ` : "."}
+        {run.selected} genomes were selected and {run.analysed} analysed
+        {run.failed.length > 0 ? `; ${run.failed.length} failed assembly and appear in no figure or table: ` : "."}
         {run.failed.map((s, i) => (
           <span key={s}>
             {i > 0 && ", "}
             <code>{s}</code>
           </span>
         ))}
-        {run.failed.length > 0 && ". Failed genomes appear in no figure or table."}
+        {run.failed.length > 0 && "."}
       </p>
       {reference && agreement && (
-        <>
-          <h3>Agreement with {reference.name}</h3>
-          <p>
-            Sequence type: {agreement.st.agree} of {agreement.st.total} genomes agree. Carbapenemase family:{" "}
-            {agreement.carbapenemase_family.agree} of {agreement.carbapenemase_family.total} agree.
-          </p>
-          {(agreement.not_in_reference ?? []).length > 0 && (
-            <p>
-              Not compared, because {reference.name} has no row for them:{" "}
-              {(agreement.not_in_reference ?? []).join(", ")}.
-            </p>
-          )}
-          {agreement.disagreements.length > 0 && (
-            <ul>
-              {agreement.disagreements.map((d) => (
-                <li key={`${d.sample}:${d.field}`}>
-                  <code>{d.sample}</code>, {d.field === "st" ? "sequence type" : "carbapenemase family"}: we call{" "}
-                  {d.ours ?? "nothing"}, {reference.name} calls {d.reference ?? "nothing"}.
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+        <p>
+          Against {reference.name}, {agreement.st.agree} of {agreement.st.total} sequence types and{" "}
+          {agreement.carbapenemase_family.agree} of {agreement.carbapenemase_family.total} carbapenemase families agree
+          {hasAgreementFigure ? " (the differences are listed under the agreement finding)." : "."}
+          {(agreement.not_in_reference ?? []).length > 0 &&
+            ` Not compared, because the reference has no row for them: ${(agreement.not_in_reference ?? []).join(", ")}.`}
+        </p>
       )}
-      <h3>Run facts</h3>
-      <dl className="facts">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+      {reference && agreement && !hasAgreementFigure && agreement.disagreements.length > 0 && (
+        <ul>
+          {agreement.disagreements.map((d) => (
+            <li key={`${d.sample}:${d.field}`}>
+              <code>{d.sample}</code>, {d.field === "st" ? "sequence type" : "carbapenemase family"}: we call{" "}
+              {d.ours ?? "nothing"}, {reference.name} calls {d.reference ?? "nothing"}.
+            </li>
+          ))}
+        </ul>
+      )}
       {info.caveats && info.caveats.length > 0 && (
         <>
           <h3>Caveats</h3>
@@ -299,17 +302,68 @@ function HowWeKnow({ info }: { info: StudyInfo }) {
           ))}
         </>
       )}
+      <h3>Run</h3>
+      <RunFacts info={info} />
     </section>
   );
 }
 
-function LinkedViews({ conn, studyFilters, setFilters, theme }: Omit<FigureProps, "filters">) {
-  const [includeIntrinsic, setIncludeIntrinsic] = useState(false);
-  const { data } = useDashboard(conn, studyFilters, includeIntrinsic);
-  const clear = useCallback(
-    () => setFilters({ ...EMPTY_FILTERS, hideQcWarnings: studyFilters.hideQcWarnings, includeIntrinsic: false }),
-    [setFilters, studyFilters.hideQcWarnings],
+const PICK_KEYS = ["clones", "periods", "families", "combos", "countries"] as const;
+const hasSelection = (f: Filters) => PICK_KEYS.some((k) => f[k].length > 0);
+
+/** Keeps the current selection in view while the reader moves through the findings. */
+function SelectionBar({
+  filters,
+  setFilters,
+  genomes,
+}: {
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  genomes: number | undefined;
+}) {
+  const picked = hasSelection(filters);
+  const set = (f: Filters) => setFilters({ ...f, includeIntrinsic: false });
+  return (
+    <div className="selection-bar" role="region" aria-label="Selection">
+      <div className="selection-main" aria-live="polite">
+        {picked ? (
+          <>
+            <FilterChips filters={filters} onChange={set} />
+            <span className="selection-count">
+              {genomes === undefined ? "…" : `${genomes} ${genomes === 1 ? "genome" : "genomes"}`}
+            </span>
+            <a className="selection-jump" href="#genomes" onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("genomes")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}>
+              See them ↓
+            </a>
+          </>
+        ) : (
+          <span className="selection-hint">Click a cell, bar or dot to see the genomes behind it.</span>
+        )}
+      </div>
+      <label className="selection-qc">
+        <input
+          type="checkbox"
+          checked={!filters.hideQcWarnings}
+          onChange={(e) => set({ ...filters, hideQcWarnings: !e.target.checked })}
+        />{" "}
+        Include genomes with QC warnings
+      </label>
+    </div>
   );
+}
+
+function GenomesBehind({
+  data,
+  clear,
+  theme,
+}: {
+  data: ReturnType<typeof useDashboard>["data"];
+  clear: () => void;
+  theme: Theme;
+}) {
   if (!data) {
     return (
       <div className="skeleton" aria-busy="true">
@@ -320,17 +374,10 @@ function LinkedViews({ conn, studyFilters, setFilters, theme }: Omit<FigureProps
   const empty = data.headline.data?.isolates === 0;
   return (
     <>
-      <Panel title="Resistance over time" error={data.timeline.error} empty={empty} onClear={clear}>
+      <Panel title="Carbapenemase families over time" error={data.timeline.error} empty={empty} onClear={clear}>
         {data.timeline.data && <Timeline rows={data.timeline.data} theme={theme} />}
       </Panel>
-      <Panel title="Most common acquired AMR elements" error={data.elements.error} empty={empty} onClear={clear}>
-        <label className="panel-option">
-          <input type="checkbox" checked={includeIntrinsic} onChange={(e) => setIncludeIntrinsic(e.target.checked)} />{" "}
-          Include intrinsic genes
-        </label>
-        {data.elements.data && <TopElements rows={data.elements.data} theme={theme} />}
-      </Panel>
-      <Panel title="Isolates" error={data.isolates.error} empty={empty} onClear={clear}>
+      <Panel title="Genomes" error={data.isolates.error} empty={empty} onClear={clear}>
         {data.isolates.data && <IsolateTable rows={data.isolates.data} />}
       </Panel>
     </>
@@ -356,47 +403,59 @@ function StudyBody({
 }) {
   const studyFilters = useMemo(() => ({ ...filters, studies: [study] }), [filters, study]);
   const props: FigureProps = { conn, studyFilters, filters, setFilters, theme };
+  const { data } = useDashboard(conn, studyFilters, false);
+  const clear = useCallback(
+    () => setFilters({ ...EMPTY_FILTERS, hideQcWarnings: studyFilters.hideQcWarnings, includeIntrinsic: false }),
+    [setFilters, studyFilters.hideQcWarnings],
+  );
+  const genomes = data?.headline.data?.isolates;
+  const hasAgreementFigure = info?.findings.some((f) => f.figure === "agreement") ?? false;
   return (
     <article className="study">
       <header className="page-head">
         <h1>{info?.title ?? study}</h1>
         {info ? <p className="question">{info.question}</p> : <Predates />}
       </header>
-      {info && (
-        <>
-          {info.background.map((p, i) => (
-            <p key={i} className="background">
+      {info?.background.map((p, i) => (
+        <p key={i} className="background">
+          <RichText text={p} />
+        </p>
+      ))}
+      <section className="findings" aria-labelledby="findings-h">
+        <h2 id="findings-h">Findings</h2>
+        <SelectionBar filters={filters} setFilters={setFilters} genomes={genomes} />
+        {info?.findings.map((f, i) => (
+          <section key={f.id} id={f.id} className="finding">
+            <h3>
+              {i + 1}. {f.title}
+            </h3>
+            <p>
+              <RichText text={f.text} />
+            </p>
+            <FindingFigure finding={f} info={info} props={props} hasCohort={hasCohort} />
+          </section>
+        ))}
+      </section>
+      {info?.meaning && info.meaning.length > 0 && (
+        <section className="meaning" aria-labelledby="meaning-h">
+          <h2 id="meaning-h">What this means</h2>
+          {info.meaning.map((p, i) => (
+            <p key={i}>
               <RichText text={p} />
             </p>
           ))}
-          <h2>Findings</h2>
-          {info.findings.map((f, i) => (
-            <section key={f.id} id={f.id} className="finding">
-              <h3>
-                {i + 1}. {f.title}
-              </h3>
-              <p>
-                <RichText text={f.text} />
-              </p>
-              <FindingFigure finding={f} info={info} props={props} hasCohort={hasCohort} />
-            </section>
-          ))}
-        </>
+        </section>
       )}
-      <label className="panel-option qc-toggle">
-        <input
-          type="checkbox"
-          checked={!filters.hideQcWarnings}
-          onChange={(e) => setFilters({ ...filters, includeIntrinsic: false, hideQcWarnings: !e.target.checked })}
-        />{" "}
-        Include genomes with QC warnings
-      </label>
-      <div className="sticky-chips">
-        <FilterChips filters={filters} onChange={(f) => setFilters({ ...f, includeIntrinsic: false })} />
-      </div>
-      <h2>Linked views</h2>
-      <LinkedViews conn={conn} studyFilters={studyFilters} setFilters={setFilters} theme={theme} />
-      {info && <HowWeKnow info={info} />}
+      <section id="genomes" className="genomes" aria-labelledby="genomes-h">
+        <h2 id="genomes-h">Genomes behind your selection</h2>
+        <p className="note">
+          {genomes === undefined
+            ? "Loading…"
+            : `${genomes} ${genomes === 1 ? "genome" : "genomes"}${hasSelection(filters) ? " match the selection above" : " in this study"}.`}
+        </p>
+        <GenomesBehind data={data} clear={clear} theme={theme} />
+      </section>
+      {info && <HowWeKnow info={info} hasAgreementFigure={hasAgreementFigure} />}
     </article>
   );
 }

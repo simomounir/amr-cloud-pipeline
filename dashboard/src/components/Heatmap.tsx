@@ -80,9 +80,14 @@ export function Heatmap({
   const pick = useCallback((d: unknown) => onPick((d as HeatCell).clone, (d as HeatCell).family), [onPick]);
   return (
     <>
-      <button className="chip" aria-pressed={byPeriod} onClick={() => onByPeriod(!byPeriod)}>
-        {byPeriod ? "All periods" : "By period"}
-      </button>
+      <div className="segmented" role="group" aria-label="Periods">
+        <button aria-pressed={!byPeriod} onClick={() => onByPeriod(false)}>
+          All periods
+        </button>
+        <button aria-pressed={byPeriod} onClick={() => onByPeriod(true)}>
+          By period
+        </button>
+      </div>
       <PlotFigure options={options} summary={`Carbapenemase family share for ${new Set(cells.map((c) => c.clone)).size} clones`} onPick={pick} />
     </>
   );

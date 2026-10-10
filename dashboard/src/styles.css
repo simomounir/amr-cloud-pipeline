@@ -291,30 +291,42 @@ footer {
   color: var(--muted);
   font-size: 0.85rem;
 }
-.sticky-chips {
+.selection-bar {
   position: sticky;
   top: 0;
-  z-index: 2;
-  background: var(--bg);
-  padding-top: 4px;
-}
-.study .panel { margin-bottom: 16px; }
-.how-we-know { max-width: 70ch; }
-.how-we-know h3 { margin: 16px 0 4px; font-size: 1rem; }
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px 16px;
-  margin: 0;
-}
-.facts div {
+  margin: 0 0 20px;
+  padding: 10px 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 8px 12px;
 }
-.facts dt { color: var(--muted); font-size: 0.8rem; }
-.facts dd { margin: 0; overflow-wrap: anywhere; }
+.selection-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.selection-main .chips { margin: 0; }
+.selection-hint { color: var(--muted); }
+.selection-count { font-weight: 600; font-variant-numeric: tabular-nums; }
+.selection-qc { font-size: 0.9rem; color: var(--muted); }
+.segmented { display: inline-flex; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.segmented button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.segmented button[aria-pressed="true"] { background: var(--chip); color: var(--ink); font-weight: 600; }
+.meaning { max-width: 70ch; margin: 32px 0; }
+.genomes { margin: 32px 0; }
+.facts-line { color: var(--muted); font-size: 0.9rem; }
+.how-we-know { max-width: 70ch; }
+.how-we-know h3 { margin: 16px 0 4px; font-size: 1rem; }
 /* Charts keep a readable size on phones and scroll sideways instead of shrinking (legends keep their own size). */
 .study figure svg[width="640"], .study figure svg[width="1280"] { min-width: 560px; }
 .study .panel { overflow-x: auto; }
@@ -378,4 +390,3 @@ footer {
   .pipeline svg.pipeline-v { display: block; }
 }
 .page-head .subtitle { margin: 0 0 12px; }
-.qc-toggle { display: block; margin: 12px 0; }

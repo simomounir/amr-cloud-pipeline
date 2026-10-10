@@ -109,3 +109,14 @@ test.describe("touch", () => {
     await expect(page.getByTestId("isolate-count")).toHaveText("2 isolates");
   });
 });
+
+test("a figure pick is confirmed in the sticky selection bar, in view", async ({ page }) => {
+  await page.goto("./#/study/study-a");
+  const bar = page.getByRole("region", { name: "Selection", exact: true });
+  await expect(bar).toContainText("Click a cell, bar or dot");
+  await page.locator('[data-figure="heatmap"] svg [aria-label*="ST147"][aria-label*="NDM"]').first().click();
+  await expect(bar).toContainText("2 genomes");
+  await expect(bar).toBeInViewport();
+  await bar.getByRole("link", { name: /See them/ }).click();
+  await expect(page.getByRole("heading", { name: "Genomes behind your selection" })).toBeInViewport();
+});
