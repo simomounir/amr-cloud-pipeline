@@ -1,17 +1,21 @@
-import type { StudyEntry, StudyInfo } from "../data/studies";
+import type { StudyEntry } from "../data/studies";
 import type { Route } from "../state/url";
 import { toHash } from "../state/url";
 import type { Theme } from "../theme";
 
+/** A short nav label from the study's slug ("carbapenemase-clones" -> "Carbapenemase clones"); titles are too long. */
+export function studyLabel(study: string): string {
+  const words = study.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function Header({
   studies,
-  infos,
   route,
   theme,
   onToggleTheme,
 }: {
   studies: StudyEntry[];
-  infos: Record<string, StudyInfo | null>;
   route: Route;
   theme: Theme;
   onToggleTheme: () => void;
@@ -33,7 +37,7 @@ export function Header({
       <nav aria-label="Main">
         {link({ page: "home" }, "Home")}
         {studies.map((s) => (
-          <span key={s.study}>{link({ page: "study", study: s.study }, infos[s.study]?.title ?? s.study)}</span>
+          <span key={s.study}>{link({ page: "study", study: s.study }, studyLabel(s.study))}</span>
         ))}
         {link({ page: "explore" }, "Explore")}
         {link({ page: "method" }, "Method")}

@@ -93,7 +93,7 @@ function HeatmapFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
   const n = loaded?.n ?? 0;
   if (error) return <FigureError error={error} />;
   return (
-    <FigureFrame figure="heatmap" title="Carbapenemase family by clone" caption={`n = ${n} genomes. A genome can carry more than one family, so a row can add up to more than 100%.`} table={table}>
+    <FigureFrame figure="heatmap" title="Carbapenemase family by clone" caption={`n = ${n} genomes. Each column takes its family's colour, stronger for a larger share. A genome can carry more than one family, so a row can add up to more than 100%.`} table={table}>
       {data && (
         <Heatmap cells={data} selected={selected} onPick={onPick} byPeriod={byPeriod} onByPeriod={setByPeriod} theme={theme} />
       )}
@@ -132,7 +132,7 @@ function PeriodsFigure({ conn, studyFilters, filters, setFilters, theme }: Figur
   if (error) return <FigureError error={error} />;
   const n = (data ?? []).reduce((sum, r) => sum + r.genomes, 0);
   return (
-    <FigureFrame figure="periods" title="Carbapenemase mix by clone and period" caption={`n = ${n} genomes`} table={table}>
+    <FigureFrame figure="periods" title="Carbapenemase mix by clone and period" caption={`n = ${n} genomes. The number above each bar is the share of its genomes that carry any carbapenemase.`} table={table}>
       {data && <PeriodBars rows={data} selected={selected} onPick={onPick} theme={theme} />}
     </FigureFrame>
   );

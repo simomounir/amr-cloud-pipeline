@@ -16,7 +16,7 @@ export function AgreementMatrix({ agreement, referenceName, theme }: { agreement
     const max = Math.max(1, ...agreement.family_matrix.map((c) => c.genomes));
     // The fill follows a sqrt scale, so the text colour switches on the scaled value, not the raw count.
     return {
-      marginLeft: 100,
+      marginLeft: 140,
       marginBottom: 60,
       height: 80 + domain.length * 36,
       x: { domain, label: `${referenceName} call`, tickRotate: -30 },
@@ -56,7 +56,7 @@ export function AgreementMatrix({ agreement, referenceName, theme }: { agreement
           <dd>{pct(agreement.carbapenemase_family)}</dd>
         </div>
       </dl>
-      <PlotFigure options={options} summary={`Carbapenemase family calls against ${referenceName}: ${pct(agreement.carbapenemase_family)} agree`} />
+      <PlotFigure options={options} minWidth={560} maxWidth={720} summary={`Carbapenemase family calls against ${referenceName}: ${pct(agreement.carbapenemase_family)} agree`} />
       {agreement.disagreements.length > 0 && (
         <div className="table-scroll">
           <table>

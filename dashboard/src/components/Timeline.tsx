@@ -14,12 +14,13 @@ function yearDomain(rows: TimelineRow[]): string[] {
 export function Timeline({ rows, theme }: { rows: TimelineRow[]; theme: Theme }) {
   const options = useMemo<Plot.PlotOptions>(
     () => ({
-      height: 280,
+      height: 300,
       marginLeft: 40,
-      x: { label: "Collection year", type: "band", domain: yearDomain(rows), tickFormat: (y: string) => (y === "undated" || Number(y) % 5 === 0 ? y : "") },
+      marginBottom: 44,
+      x: { label: "Collection year", labelOffset: 40, tickSize: 0, type: "band", domain: yearDomain(rows), tickFormat: (y: string) => (y === "undated" || Number(y) % 5 === 0 ? y : "") },
       // A genome with two carbapenemase families is stacked once per family.
       y: { label: "Genomes per carbapenemase family", grid: true, tickFormat: "d", interval: 1 },
-      color: { domain: FAMILY_ORDER, range: FAMILY_ORDER.map((f) => familyColour(f, theme)), legend: true },
+      color: { domain: FAMILY_ORDER, range: FAMILY_ORDER.map((f) => familyColour(f, theme)), legend: true, style: { fontSize: "13px" } },
       marks: [Plot.barY(rows, { x: "year", y: "isolates", fill: "family", tip: true }), Plot.ruleY([0])],
     }),
     [rows, theme],

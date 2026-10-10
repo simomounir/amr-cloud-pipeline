@@ -1,13 +1,26 @@
 import * as Plot from "@observablehq/plot";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** Plot's own default width, used until the container has been measured (and in server rendering). */
+const DEFAULT_WIDTH = 640;
+
+/** The width the figure gets: its container's, kept within [minWidth, maxWidth]; below minWidth it scrolls. */
+export function figureWidth(container: number, minWidth: number, maxWidth: number): number {
+  return Math.round(Math.max(minWidth, Math.min(maxWidth, container)));
+}
 
 export function PlotFigure({
   options,
   summary,
   onPick,
+  minWidth = 320,
+  maxWidth = 1280,
 }: {
-  options: Plot.PlotOptions;
+  /** Plot options, or a function of the width the figure will be drawn at (for layouts that change on phones). */
+  options: Plot.PlotOptions | ((width: number) => Plot.PlotOptions);
   summary: string;
+  minWidth?: number;
+  maxWidth?: number;
   /**
    * Called with the datum under the pointer on click (Plot sets `figure.value` for marks with `tip`).
    * Memoise it.
@@ -15,13 +28,26 @@ export function PlotFigure({
   onPick?: (datum: unknown) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<number | null>(null);
   useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setContainer(Math.floor(entry.contentRect.width)));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const width = container === null ? Math.min(DEFAULT_WIDTH, maxWidth) : figureWidth(container, minWidth, maxWidth);
+  useEffect(() => {
+    const resolved = typeof options === "function" ? options(width) : options;
     const figure = Plot.plot({
-      ...options,
+      width,
+      ...resolved,
       style: {
         background: "transparent",
         color: "var(--ink)",
-        ...(typeof options.style === "object" ? options.style : {}),
+        fontFamily: "inherit",
+        fontSize: "12px",
+        ...(typeof resolved.style === "object" ? resolved.style : {}),
       },
     });
     // Plot's own `:where(.plot)` rule sets --plot-background: white on each svg and its style option
@@ -65,7 +91,8 @@ export function PlotFigure({
     figure.addEventListener("pointerleave", leave);
     figure.addEventListener("click", click);
     if (onPick) figure.style.cursor = "pointer";
-    ref.current?.replaceChildren(figure);
+    // The figure lives in its own child so the measured container keeps its width while charts redraw.
+    ref.current?.firstElementChild?.replaceChildren(figure);
     return () => {
       figure.removeEventListener("input", remember);
       figure.removeEventListener("pointermove", track, true);
@@ -74,10 +101,12 @@ export function PlotFigure({
       figure.removeEventListener("click", click);
       figure.remove();
     };
-  }, [options, onPick]);
+  }, [options, onPick, width]);
   return (
-    <figure>
-      <div ref={ref} />
+    <figure className="plot">
+      <div ref={ref} className="plot-frame">
+        <div />
+      </div>
       <figcaption className="sr-only">{summary}</figcaption>
     </figure>
   );

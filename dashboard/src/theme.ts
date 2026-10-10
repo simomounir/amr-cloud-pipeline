@@ -64,6 +64,49 @@ export const SEQUENTIAL: Record<Theme, [string, string]> = {
   dark: ["#1b2630", "#7cc0ff"],
 };
 
+// Chart surfaces per mode (styles.css --surface), and the darkest and lightest inks for text on coloured
+// cells: mid-tone fills leave little room, so both extremes are needed to keep cell text near 4.5:1.
+const SURFACE: Record<Theme, string> = { light: "#ffffff", dark: "#161c23" };
+const CELL_INKS = ["#0f1419", "#ffffff"] as const;
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const toHex = (channels: number[]) => `#${channels.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+
+/** `from` blended towards `to` by t in [0, 1], in sRGB. */
+export function mix(from: string, to: string, t: number): string {
+  const a = rgb(from);
+  const b = rgb(to);
+  return toHex(a.map((v, i) => v + (b[i] - v) * t));
+}
+
+function luminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two colours. */
+export function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * A heatmap cell's fill: the family's own colour, stronger with the share, so a column reads as its family
+ * and "none" stays neutral. A 0% cell keeps a faint trace of its column's colour.
+ */
+export function shareFill(family: string, share: number, theme: Theme): string {
+  return mix(SURFACE[theme], familyColour(family, theme), share === 0 ? 0.06 : 0.16 + 0.84 * share);
+}
+
+/** The text ink (near-black or white) with the higher contrast on `fill`. */
+export function inkOn(fill: string): string {
+  const [dark, light] = CELL_INKS;
+  return contrast(fill, dark) >= contrast(fill, light) ? dark : light;
+}
+
 /** The earliest family (in FAMILY_ORDER) that a carbapenemase combo such as "IMP+VIM" contains. */
 export function comboFamily(combo: string): string {
   const parts = combo.split("+");

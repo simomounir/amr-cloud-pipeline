@@ -25,7 +25,7 @@ export function StudyCard({ study, info, error }: { study: string; info: StudyIn
           <p>{info.question}</p>
           {info.findings[0] && (
             <p className="key-finding">
-              <span>Key finding</span> {info.findings[0].title}
+              <strong>Key finding:</strong> {info.findings[0].title}
             </p>
           )}
           <p className="study-note">

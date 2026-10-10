@@ -4,7 +4,7 @@ test("home introduces the project and lists every study", async ({ page }) => {
   await page.goto("./");
   await expect(page.getByText(/Klebsiella pneumoniae/).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
-  await expect(page.getByTestId("tile-genomes")).toHaveText("8"); // 6 + 2 analysed
+  await expect(page.getByTestId("fact-genomes")).toHaveText("8"); // 6 + 2 analysed
   const cards = page.locator(".study-cards").getByRole("link", { name: /Fixture study/ }); // header nav also links studies
   await expect(cards).toHaveCount(2);
   await cards.first().click();
