@@ -175,7 +175,7 @@ th button {
   font-weight: 600;
   text-transform: capitalize;
 }
-.table-actions button, .pager button {
+.table-actions button, .pager button, .filters button {
   font: inherit;
   font-size: var(--text-small);
   padding: 4px 12px;
@@ -185,7 +185,7 @@ th button {
   color: var(--ink);
   cursor: pointer;
 }
-.table-actions button:hover, .pager button:hover:not(:disabled) { border-color: var(--muted); }
+.table-actions button:hover, .pager button:hover:not(:disabled), .filters button:hover { border-color: var(--muted); }
 .pager button:disabled { color: var(--muted); cursor: default; opacity: 0.6; }
 .pager {
   display: flex;
